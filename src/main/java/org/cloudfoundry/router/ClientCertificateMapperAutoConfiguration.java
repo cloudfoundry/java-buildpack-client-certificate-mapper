@@ -19,23 +19,29 @@ package org.cloudfoundry.router;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnCloudPlatform;
 import org.springframework.boot.cloud.CloudPlatform;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 
 import javax.servlet.Filter;
 import java.security.cert.CertificateException;
 
-@ConditionalOnClass(Filter.class)
+@ConditionalOnClass({Filter.class, FilterRegistrationBean.class})
 @ConditionalOnCloudPlatform(CloudPlatform.CLOUD_FOUNDRY)
 @Configuration
 public class ClientCertificateMapperAutoConfiguration {
 
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
     ClientCertificateMapper clientCertificateMapper() throws CertificateException {
         return new ClientCertificateMapper();
+    }
+
+    @Bean
+    FilterRegistrationBean clientCertificateMapperFilterRegistrationBean(ClientCertificateMapper mapper) {
+        FilterRegistrationBean result = new FilterRegistrationBean(mapper);
+        result.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return result;
     }
 
 }
