@@ -1,0 +1,17 @@
+---
+platform: linux
+
+image_resource:
+  type: docker-image
+  source:
+    repository: openjdk
+    tag: 7-jdk-alpine
+
+inputs:
+- name: java-buildpack-client-certificate-mapper
+
+caches:
+- path: maven
+
+run:
+  path: java-buildpack-client-certificate-mapper/ci/unit-test.sh
