@@ -32,7 +32,7 @@
     <groupId>org.cloudfoundry</groupId>
     <artifactId>java-buildpack-client-certificate-mapper</artifactId>
     <name>Cloud Foundry Client Certificate Mapper</name>
-    <version>1.4.0.BUILD-SNAPSHOT</version>
+    <version>1.5.0.BUILD-SNAPSHOT</version>
     <packaging>jar</packaging>
     <url>https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper</url>
 
