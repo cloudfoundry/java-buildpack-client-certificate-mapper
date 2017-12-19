@@ -37,7 +37,6 @@
     <url>https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper</url>
 
     <properties>
-        <servlet-api.version>2.5</servlet-api.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -49,8 +48,7 @@
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
-            <version>${servlet-api.version}</version>
+            <artifactId>javax.servlet-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
