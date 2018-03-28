@@ -28,6 +28,10 @@ public final class ClientCertificateMapperServletContainerInitializer implements
 
     @Override
     public void onStartup(Set<Class<?>> c, ServletContext ctx) throws ServletException {
+        if (ctx == null) {
+            return;
+        }
+
         try {
             ctx.addFilter("clientCertificateMapper", new ClientCertificateMapper())
                 .addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
