@@ -17,6 +17,7 @@
 package org.cloudfoundry.router;
 
 import javax.servlet.DispatcherType;
+import javax.servlet.FilterRegistration;
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -32,12 +33,22 @@ public final class ClientCertificateMapperServletContainerInitializer implements
             return;
         }
 
+        FilterRegistration.Dynamic filterRegistration = addFilter(ctx);
+        if (filterRegistration == null) {
+            return;
+        }
+
+        filterRegistration.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
+    }
+
+    private FilterRegistration.Dynamic addFilter(ServletContext ctx) throws ServletException {
+        FilterRegistration.Dynamic filterRegistration;
         try {
-            ctx.addFilter("clientCertificateMapper", new ClientCertificateMapper())
-                .addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
+            filterRegistration = ctx.addFilter("clientCertificateMapper", new ClientCertificateMapper());
         } catch (CertificateException e) {
             throw new ServletException(e);
         }
+        return filterRegistration;
     }
 
 }

@@ -35,7 +35,28 @@ public final class ClientCertificateMapperServletContainerInitializerTest {
     private final FilterRegistration.Dynamic dynamic = mock(FilterRegistration.Dynamic.class);
 
     @Test
-    public void onStartup() throws ServletException {
+    public void onStartupAlreadyRegistered() throws ServletException {
+        MockServletContext servletContext = new MockServletContext() {
+
+            @Override
+            public FilterRegistration.Dynamic addFilter(String filterName, Filter filter) {
+                assertThat(filterName).isEqualTo("clientCertificateMapper");
+                assertThat(filter).isInstanceOf(ClientCertificateMapper.class);
+
+                return null;
+            }
+        };
+
+        new ClientCertificateMapperServletContainerInitializer().onStartup(null, servletContext);
+    }
+
+    @Test
+    public void onStartupNullServletContext() throws ServletException {
+        new ClientCertificateMapperServletContainerInitializer().onStartup(null, null);
+    }
+
+    @Test
+    public void onStartupUnRegistered() throws ServletException {
         MockServletContext servletContext = new MockServletContext() {
 
             @Override
@@ -50,11 +71,6 @@ public final class ClientCertificateMapperServletContainerInitializerTest {
         new ClientCertificateMapperServletContainerInitializer().onStartup(null, servletContext);
 
         verify(this.dynamic).addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
-    }
-
-    @Test
-    public void onStartupNullServletContext() throws ServletException {
-        new ClientCertificateMapperServletContainerInitializer().onStartup(null, null);
     }
 
 }
