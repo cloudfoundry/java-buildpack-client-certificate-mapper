@@ -42,13 +42,11 @@ public final class ClientCertificateMapperServletContainerInitializer implements
     }
 
     private FilterRegistration.Dynamic addFilter(ServletContext ctx) throws ServletException {
-        FilterRegistration.Dynamic filterRegistration;
         try {
-            filterRegistration = ctx.addFilter("clientCertificateMapper", new ClientCertificateMapper());
+            return ctx.addFilter("clientCertificateMapper", new ClientCertificateMapper());
         } catch (CertificateException e) {
             throw new ServletException(e);
         }
-        return filterRegistration;
     }
 
 }
