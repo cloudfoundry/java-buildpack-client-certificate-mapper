@@ -68,6 +68,32 @@ public final class ClientCertificateMapperTest {
         "OeiChAJVyknz/Mu1KmQxoZ43JfCyUIdtT5oE7CWIJt3qVwJYLgykuYV8vXEnIALB" +
         "p/ob7SaWTJJO";
 
+    private static final String NGINX_ESCAPED_CERT = "" + 
+        "%2D%2D%2D%2D%2DBEGIN%20CERTIFICATE%2D%2D%2D%2D%2D%0D%0AMIIDLTCCA" +
+        "hWgAwIBAgIkMDg3ZjVmZGMtOThkNy00MGMwLTY0ZDMtZmQ5NWFmODMx%0D%0AOTh" + 
+        "kMA0GCSqGSIb3DQEBCwUAMBoxGDAWBgNVBAMMD2NyZWRodWJDbGllbnRDQTAe%0D" + 
+        "%0AFw0xNzA1MDIwMDQ5MzFaFw0xNzA1MDMwMDQ5MzFaMGIxMTAvBgNVBAsTKGFwc" + 
+        "Doy%0D%0AMzI4MmZkMS0zNWI0LTQ1ZGQtYTYwMi04Zjc2ZjRhNjBkMTExLTArBgN" + 
+        "VBAMTJDA4%0D%0AN2Y1ZmRjLTk4ZDctNDBjMC02NGQzLWZkOTVhZjgzMTk4ZDCCA" + 
+        "SIwDQYJKoZIhvcN%0D%0AAQEBBQADggEPADCCAQoCggEBAPhcSn56pIVWI0Rpwrk" +
+        "C3WcvumLw%2B3i%2Foj3YBbEx%0D%0AAUAFJMFl%2Fyt1zpAghLvYOOiiUS%2FW0" + 
+        "4SKp8Z9FHlmNabJOzV40RIciSbYCW0tBeFG%0D%0AKNkgolTGamvRLZkkHUJdywE" +
+        "QkvnMG7%2B2XczDBoCZ7fdBepg6gieSqGhQwl%2FsO7x%2F%0D%0ATouvQnujKwJ" +
+        "LiXOKQq00TkT%2BMVEzOZyOMlqFh9r2XjUGuh1HnRM0IAj6buR5663t%0D%0A4lA" + 
+        "QqOluTAVNCKWSrAMIKb0G4QPTQ4pKRTeMEnTijFErtKlpzc64HYrBpufj1K%2Fq%" +
+        "0D%0ATxYIy3EgeT3UVSclSub14M4%2Fr%2FmOmWotYP81BR1Ko7pxV28CAwEAAaM" +
+        "TMBEwDwYD%0D%0AVR0RBAgwBocECv4AAjANBgkqhkiG9w0BAQsFAAOCAQEAuG8A3" + 
+        "3%2BUn2rvXA%2BqAf40%0D%0AgBponN2mjx0drasw%2FMqBnclUL1MYvOepqcGxx" + 
+        "NB%2F1Ok%2FbKKDMr03ugVaxzAdoknA%0D%0ANwIyY%2FghL6xHs%2FJrmuSGDs9" +
+        "BeNF0y8TOpQmmjh1EDFtR9YFuTRP1OZ6XBf5fbd80%0D%0AQ684k%2FWu8ELywZJ" +
+        "d53FKcTPJRQ%2FYjn4QFJORtcNFlvMFWTmJLLiMDbI8JBcqMLZH%0D%0AsgdyBtV" + 
+        "7kJdZU3nszgFEPspYzFfxQZmq6V%2BpJb%2BdmG2jYWrX%2FR21J9x1dJHBCoPp%" +
+        "0D%0AXcqQm8pYsDxi%2BHTGS6an78sHqrvU5uQJq2MW8o6iBJR80bFgWSl7GTqK3" +
+        "Xz5iTxU%0D%0AEw%3D%3D%0D%0A%2D%2D%2D%2D%2DEND%20CERTIFICATE%2D%2" +
+        "D%2D%2D%2D%0D%0A";
+
+    
+
     private final MockFilterChain filterChain = new MockFilterChain();
 
     private final ClientCertificateMapper mapper;
@@ -82,7 +108,8 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void emptyHeader() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, "");
+        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, "");
+        this.request.addHeader(ClientCertificateMapper.NINGX_HEADER, "");
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -92,7 +119,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void invalidHeader() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, "Invalid Header Value");
+        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, "Invalid Header Value");
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -102,8 +129,8 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void invalidMultipleHeaders() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
-        this.request.addHeader(ClientCertificateMapper.HEADER, "Invalid Header Value");
+        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, CERTIFICATE_1);
+        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, "Invalid Header Value");        
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -113,7 +140,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void invalidMultipleInOneHeader() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, String.format("%s,Invalid Header Value", CERTIFICATE_1));
+        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, String.format("%s,Invalid Header Value", CERTIFICATE_1));
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -123,8 +150,8 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void multipleHeaders() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
-        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_2);
+        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, CERTIFICATE_1);
+        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, CERTIFICATE_2);
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -134,7 +161,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void multipleInOneHeader() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, String.format("%s,%s", CERTIFICATE_1, CERTIFICATE_2));
+        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, String.format("%s,%s", CERTIFICATE_1, CERTIFICATE_2));
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -148,6 +175,18 @@ public final class ClientCertificateMapperTest {
 
         assertThat(this.filterChain.getRequest()).isNotNull();
         assertThat(this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
+    }
+
+    @Test
+    public void nginxHeader() throws IOException, ServletException {
+       
+        this.request.addHeader(ClientCertificateMapper.NINGX_HEADER, String.format("%s", NGINX_ESCAPED_CERT));
+
+        this.mapper.doFilter(this.request, this.response, this.filterChain);
+
+
+        assertThat(this.filterChain.getRequest()).isNotNull();
+        assertThat((X509Certificate[]) this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).hasSize(1);
     }
 
 }

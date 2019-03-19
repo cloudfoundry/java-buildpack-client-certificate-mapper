@@ -27,6 +27,7 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLDecoder;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -45,7 +46,8 @@ final class ClientCertificateMapper implements Filter {
 
     static final String ATTRIBUTE = "javax.servlet.request.X509Certificate";
 
-    static final String HEADER = "X-Forwarded-Client-Cert";
+    static final String GO_ROUTER_HEADER = "X-Forwarded-Client-Cert";
+    static final String NINGX_HEADER = "X-Forwarded-Client-Cert-Url";
 
     private final Logger logger = Logger.getLogger(this.getClass().getName());
 
@@ -82,25 +84,27 @@ final class ClientCertificateMapper implements Filter {
 
     }
 
-    private X509Certificate decodeCertificate(String rawCertificate) throws CertificateException, IOException {
-        try (InputStream in = new ByteArrayInputStream(DatatypeConverter.parseBase64Binary(rawCertificate))) {
+    private X509Certificate decodeCertificate(byte[] rawCertificate) throws CertificateException, IOException {        
+        try (InputStream in = new ByteArrayInputStream(rawCertificate)) {
             return (X509Certificate) this.certificateFactory.generateCertificate(in);
-        }
+        } 
     }
 
     private List<X509Certificate> getCertificates(HttpServletRequest request) throws CertificateException, IOException {
         List<X509Certificate> certificates = new ArrayList<>();
 
-        for (String rawCertificate : getRawCertificates(request)) {
-            certificates.add(decodeCertificate(rawCertificate));
+        for (String rawCertificate : getRawCertificates(request, GO_ROUTER_HEADER)) {
+            certificates.add(decodeCertificate(DatatypeConverter.parseBase64Binary(rawCertificate)));
         }
-
+        for (String rawCertificate : getRawCertificates(request, NINGX_HEADER)){            
+            certificates.add(decodeCertificate(URLDecoder.decode(rawCertificate, "utf-8").getBytes()));
+        }
         return certificates;
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> getRawCertificates(HttpServletRequest request) {
-        Enumeration<String> candidates = request.getHeaders(HEADER);
+    private List<String> getRawCertificates(HttpServletRequest request, String header) {
+        Enumeration<String> candidates = request.getHeaders(header);
 
         if (candidates == null) {
             return Collections.emptyList();
