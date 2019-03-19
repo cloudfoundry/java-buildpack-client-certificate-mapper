@@ -27,6 +27,8 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -42,6 +44,12 @@ import java.util.logging.Logger;
  * multiple headers as well as the <a href=https://tools.ietf.org/html/rfc7230#section-3.2.2>RFC 7230</a> comma delimited equivalent.
  */
 final class ClientCertificateMapper implements Filter {
+
+    private enum CertificateMappingMethod {
+        UNKNOWN,
+        NGINX,
+        GO_ROUTER
+    }
 
     static final String ATTRIBUTE = "javax.servlet.request.X509Certificate";
 
@@ -82,25 +90,48 @@ final class ClientCertificateMapper implements Filter {
 
     }
 
-    private X509Certificate decodeCertificate(String rawCertificate) throws CertificateException, IOException {
-        try (InputStream in = new ByteArrayInputStream(DatatypeConverter.parseBase64Binary(rawCertificate))) {
+    private X509Certificate decodeCertificate(byte[] rawCertificate) throws CertificateException, IOException {        
+        try (InputStream in = new ByteArrayInputStream(rawCertificate)) {
             return (X509Certificate) this.certificateFactory.generateCertificate(in);
-        }
+        } 
     }
 
     private List<X509Certificate> getCertificates(HttpServletRequest request) throws CertificateException, IOException {
         List<X509Certificate> certificates = new ArrayList<>();
 
-        for (String rawCertificate : getRawCertificates(request)) {
-            certificates.add(decodeCertificate(rawCertificate));
+        CertificateMappingMethod certificateMappingMethod = CertificateMappingMethod.UNKNOWN;
+
+        for (String rawCertificate : getRawCertificates(request, HEADER)) {
+            if ( CertificateMappingMethod.GO_ROUTER.equals(certificateMappingMethod) || CertificateMappingMethod.UNKNOWN.equals(certificateMappingMethod)) {
+                try {
+                    certificates.add(decodeCertificate(DatatypeConverter.parseBase64Binary(rawCertificate)));
+                    certificateMappingMethod = CertificateMappingMethod.GO_ROUTER;
+                } catch (CertificateException | IllegalArgumentException e) {
+                    if (certificateMappingMethod != CertificateMappingMethod.UNKNOWN){
+                        throw e;
+                    }
+                }
+            }
+            if ( CertificateMappingMethod.NGINX.equals(certificateMappingMethod) || CertificateMappingMethod.UNKNOWN.equals(certificateMappingMethod)) {
+                try {
+                    certificates.add(decodeCertificate(URLDecoder.decode(rawCertificate, "utf-8").getBytes()));
+                    certificateMappingMethod = CertificateMappingMethod.NGINX;
+                } catch (CertificateException | UnsupportedEncodingException e) {
+                    if (certificateMappingMethod != CertificateMappingMethod.UNKNOWN){
+                        throw e;
+                    }
+                }
+            }
+            if (CertificateMappingMethod.UNKNOWN.equals(certificateMappingMethod)){
+                throw new CertificateException();
+            }
         }
 
         return certificates;
     }
 
-    @SuppressWarnings("unchecked")
-    private List<String> getRawCertificates(HttpServletRequest request) {
-        Enumeration<String> candidates = request.getHeaders(HEADER);
+    private List<String> getRawCertificates(HttpServletRequest request, String header) {
+        Enumeration<String> candidates = request.getHeaders(header);
 
         if (candidates == null) {
             return Collections.emptyList();
