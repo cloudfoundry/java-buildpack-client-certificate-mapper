@@ -108,8 +108,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void emptyHeader() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, "");
-        this.request.addHeader(ClientCertificateMapper.NINGX_HEADER, "");
+        this.request.addHeader(ClientCertificateMapper.HEADER, "");
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -119,7 +118,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void invalidHeader() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, "Invalid Header Value");
+        this.request.addHeader(ClientCertificateMapper.HEADER, "Invalid Header Value");
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -129,8 +128,8 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void invalidMultipleHeaders() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, CERTIFICATE_1);
-        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, "Invalid Header Value");        
+        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
+        this.request.addHeader(ClientCertificateMapper.HEADER, "Invalid Header Value");
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -140,7 +139,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void invalidMultipleInOneHeader() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, String.format("%s,Invalid Header Value", CERTIFICATE_1));
+        this.request.addHeader(ClientCertificateMapper.HEADER, String.format("%s,Invalid Header Value", CERTIFICATE_1));
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -150,8 +149,8 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void multipleHeaders() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, CERTIFICATE_1);
-        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, CERTIFICATE_2);
+        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
+        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_2);
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -161,7 +160,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void multipleInOneHeader() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.GO_ROUTER_HEADER, String.format("%s,%s", CERTIFICATE_1, CERTIFICATE_2));
+        this.request.addHeader(ClientCertificateMapper.HEADER, String.format("%s,%s", CERTIFICATE_1, CERTIFICATE_2));
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -180,7 +179,7 @@ public final class ClientCertificateMapperTest {
     @Test
     public void nginxHeader() throws IOException, ServletException {
        
-        this.request.addHeader(ClientCertificateMapper.NINGX_HEADER, String.format("%s", NGINX_ESCAPED_CERT));
+        this.request.addHeader(ClientCertificateMapper.HEADER, String.format("%s", NGINX_ESCAPED_CERT));
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
