@@ -24,9 +24,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.spring.platform</groupId>
-        <artifactId>platform-bom</artifactId>
-        <version>Brussels-SR7</version>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>2.1.7.RELEASE</version>
     </parent>
 
     <groupId>org.cloudfoundry</groupId>
@@ -73,7 +73,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.7.0</version>
+                <version>3.8.1</version>
                 <configuration>
                     <compilerArgs>
                         <arg>-Werror</arg>
@@ -81,8 +81,8 @@
                         <arg>-Xlint:-options</arg>
                     </compilerArgs>
                     <showWarnings>true</showWarnings>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -93,7 +93,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>3.0.1</version>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -106,7 +106,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.20</version>
+                <version>2.22.1</version>
                 <configuration>
                     <runOrder>random</runOrder>
                 </configuration>

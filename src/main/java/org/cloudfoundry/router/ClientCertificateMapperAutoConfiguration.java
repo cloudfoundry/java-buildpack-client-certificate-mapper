@@ -38,8 +38,8 @@ public class ClientCertificateMapperAutoConfiguration {
     }
 
     @Bean
-    FilterRegistrationBean clientCertificateMapperFilterRegistrationBean(ClientCertificateMapper mapper) {
-        FilterRegistrationBean result = new FilterRegistrationBean(mapper);
+    FilterRegistrationBean<ClientCertificateMapper> clientCertificateMapperFilterRegistrationBean(ClientCertificateMapper mapper) {
+        FilterRegistrationBean<ClientCertificateMapper> result = new FilterRegistrationBean<>(mapper);
         result.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return result;
     }
