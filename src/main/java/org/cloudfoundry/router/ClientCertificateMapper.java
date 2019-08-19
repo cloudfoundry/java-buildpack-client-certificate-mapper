@@ -23,15 +23,17 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import javax.xml.bind.DatatypeConverter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -67,7 +69,7 @@ final class ClientCertificateMapper implements Filter {
                 List<X509Certificate> certificates = getCertificates((HttpServletRequest) request);
 
                 if (!certificates.isEmpty()) {
-                    request.setAttribute(ATTRIBUTE, certificates.toArray(new X509Certificate[certificates.size()]));
+                    request.setAttribute(ATTRIBUTE, certificates.toArray(new X509Certificate[0]));
                 }
             } catch (CertificateException e) {
                 this.logger.warning("Unable to parse certificates in X-Forwarded-Client-Cert");
@@ -78,13 +80,19 @@ final class ClientCertificateMapper implements Filter {
     }
 
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
+    public void init(FilterConfig filterConfig) {
 
     }
 
-    private X509Certificate decodeCertificate(String rawCertificate) throws CertificateException, IOException {
-        try (InputStream in = new ByteArrayInputStream(DatatypeConverter.parseBase64Binary(rawCertificate))) {
-            return (X509Certificate) this.certificateFactory.generateCertificate(in);
+    private byte[] decodeHeader(String rawCertificate) {
+        try {
+            return Base64.getDecoder().decode(rawCertificate);
+        } catch (IllegalArgumentException e1) {
+            try {
+                return URLDecoder.decode(rawCertificate, "utf-8").getBytes();
+            } catch (UnsupportedEncodingException e2) {
+                throw new IllegalArgumentException("Header contains value that is neither base64 nor url encoded");
+            }
         }
     }
 
@@ -92,13 +100,14 @@ final class ClientCertificateMapper implements Filter {
         List<X509Certificate> certificates = new ArrayList<>();
 
         for (String rawCertificate : getRawCertificates(request)) {
-            certificates.add(decodeCertificate(rawCertificate));
+            try (InputStream in = new ByteArrayInputStream(decodeHeader(rawCertificate))) {
+                certificates.add((X509Certificate) this.certificateFactory.generateCertificate(in));
+            }
         }
 
         return certificates;
     }
 
-    @SuppressWarnings("unchecked")
     private List<String> getRawCertificates(HttpServletRequest request) {
         Enumeration<String> candidates = request.getHeaders(HEADER);
 
