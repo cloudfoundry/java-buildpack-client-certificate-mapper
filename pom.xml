@@ -76,7 +76,8 @@
                 <version>3.8.1</version>
                 <configuration>
                     <compilerArgs>
-                        <arg>-Werror</arg>
+                        <!-- TODO: Remove once Boot 1.5 support is no longer needed. -->
+                        <!-- <arg>-Werror</arg> -->
                         <arg>-Xlint:all</arg>
                         <arg>-Xlint:-options</arg>
                     </compilerArgs>
