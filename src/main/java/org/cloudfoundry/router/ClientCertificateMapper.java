@@ -47,14 +47,12 @@ final class ClientCertificateMapper implements Filter {
 
     static final String ATTRIBUTE = "javax.servlet.request.X509Certificate";
 
-    static final String HEADER = "X-Forwarded-Client-Cert";
-
     private final Logger logger = Logger.getLogger(this.getClass().getName());
 
-    private final CertificateFactory certificateFactory;
+    private final CertificateLoader certificateLoader;
 
     ClientCertificateMapper() throws CertificateException {
-        this.certificateFactory = CertificateFactory.getInstance("X.509");
+        this.certificateLoader = new CertificateLoader(CertificateFactory.getInstance("X.509"));
     }
 
     @Override
@@ -66,7 +64,8 @@ final class ClientCertificateMapper implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         if (request instanceof HttpServletRequest) {
             try {
-                List<X509Certificate> certificates = getCertificates((HttpServletRequest) request);
+                Enumeration<String> header = ((HttpServletRequest) request).getHeaders(CertificateLoader.HEADER_NAME);
+                List<X509Certificate> certificates = this.certificateLoader.getCertificates(Collections.list(header));
 
                 if (!certificates.isEmpty()) {
                     request.setAttribute(ATTRIBUTE, certificates.toArray(new X509Certificate[0]));
@@ -83,54 +82,4 @@ final class ClientCertificateMapper implements Filter {
     public void init(FilterConfig filterConfig) {
 
     }
-
-    private byte[] decodeHeader(String rawCertificate) {
-        try {
-            return Base64.getDecoder().decode(rawCertificate);
-        } catch (IllegalArgumentException e1) {
-            try {
-                return URLDecoder.decode(rawCertificate, "utf-8").getBytes();
-            } catch (UnsupportedEncodingException e2) {
-                throw new IllegalArgumentException("Header contains value that is neither base64 nor url encoded");
-            }
-        }
-    }
-
-    private List<X509Certificate> getCertificates(HttpServletRequest request) throws CertificateException, IOException {
-        List<X509Certificate> certificates = new ArrayList<>();
-
-        for (String rawCertificate : getRawCertificates(request)) {
-            try (InputStream in = new ByteArrayInputStream(decodeHeader(rawCertificate))) {
-                certificates.add((X509Certificate) this.certificateFactory.generateCertificate(in));
-            }
-        }
-
-        return certificates;
-    }
-
-    private List<String> getRawCertificates(HttpServletRequest request) {
-        Enumeration<String> candidates = request.getHeaders(HEADER);
-
-        if (candidates == null) {
-            return Collections.emptyList();
-        }
-
-        List<String> rawCertificates = new ArrayList<>();
-        while (candidates.hasMoreElements()) {
-            String candidate = candidates.nextElement();
-
-            if (hasMultipleCertificates(candidate)) {
-                rawCertificates.addAll(Arrays.asList(candidate.split(",")));
-            } else {
-                rawCertificates.add(candidate);
-            }
-        }
-
-        return rawCertificates;
-    }
-
-    private boolean hasMultipleCertificates(String candidate) {
-        return candidate.indexOf(',') != -1;
-    }
-
 }
