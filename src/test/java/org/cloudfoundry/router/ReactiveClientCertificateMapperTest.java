@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 the original author or authors.
+ * Copyright 2017-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,19 @@
 
 package org.cloudfoundry.router;
 
+import org.junit.Before;
 import org.junit.Test;
-import org.springframework.mock.web.MockFilterChain;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 
-import javax.servlet.ServletException;
-import java.io.IOException;
 import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
+import java.security.cert.CertificateFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public final class ClientCertificateMapperTest {
+public class ReactiveClientCertificateMapperTest {
 
     private static final String CERTIFICATE_1 = "" +
         "MIIDLTCCAhWgAwIBAgIkMDg3ZjVmZGMtOThkNy00MGMwLTY0ZDMtZmQ5NWFmODMx" +
@@ -93,97 +93,94 @@ public final class ClientCertificateMapperTest {
         "D%2D%2D%2D%0D%0A";
 
 
-    private final MockFilterChain filterChain = new MockFilterChain();
+    private ReactiveClientCertificateMapper mapper;
+    private ServerWebExchange actualExchange;
 
-    private final ClientCertificateMapper mapper;
+    @Before
+    public void setUp() throws CertificateException {
+        this.mapper = new ReactiveClientCertificateMapper(new CertificateLoader(CertificateFactory.getInstance("X.509")));
+    }
 
-    private final MockHttpServletRequest request = new MockHttpServletRequest();
+    private ServerWebExchange doFilter(MockServerHttpRequest request) {
+        MockServerWebExchange serverWebExchange = MockServerWebExchange.from(request);
 
-    private final MockHttpServletResponse response = new MockHttpServletResponse();
+        this.mapper.filter(serverWebExchange, exchange -> {
+            actualExchange = exchange;
+            return Mono.empty();
+        }).block();
 
-    public ClientCertificateMapperTest() throws CertificateException {
-        this.mapper = new ClientCertificateMapper();
+        return actualExchange;
     }
 
     @Test
-    public void emptyHeader() throws IOException, ServletException {
-        this.request.addHeader(CertificateLoader.HEADER_NAME, "");
+    public void emptyHeader() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").header(CertificateLoader.HEADER_NAME, "").build();
 
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
+        ServerWebExchange exchange = doFilter(request);
 
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat(this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
+        assertThat(exchange.getRequest().getSslInfo()).isNull();
     }
 
     @Test
-    public void invalidHeader() throws IOException, ServletException {
-        this.request.addHeader(CertificateLoader.HEADER_NAME, "Invalid Header Value");
+    public void invalidHeader() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").header(CertificateLoader.HEADER_NAME, "Invalid Header Value").build();
 
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
+        ServerWebExchange exchange = doFilter(request);
 
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat(this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
+        assertThat(exchange.getRequest().getSslInfo()).isNull();
     }
 
     @Test
-    public void invalidMultipleHeaders() throws IOException, ServletException {
-        this.request.addHeader(CertificateLoader.HEADER_NAME, CERTIFICATE_1);
-        this.request.addHeader(CertificateLoader.HEADER_NAME, "Invalid Header Value");
+    public void invalidMultipleHeaders() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").header(CertificateLoader.HEADER_NAME, CERTIFICATE_1, "Invalid Header Value").build();
 
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
+        ServerWebExchange exchange = doFilter(request);
 
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat(this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
+        assertThat(exchange.getRequest().getSslInfo()).isNull();
     }
 
     @Test
-    public void invalidMultipleInOneHeader() throws IOException, ServletException {
-        this.request.addHeader(CertificateLoader.HEADER_NAME, String.format("%s,Invalid Header Value", CERTIFICATE_1));
+    public void invalidMultipleInOneHeader() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").header(CertificateLoader.HEADER_NAME, String.format("%s,Invalid Header Value", CERTIFICATE_1)).build();
 
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
+        ServerWebExchange exchange = doFilter(request);
 
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat(this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
+        assertThat(exchange.getRequest().getSslInfo()).isNull();
     }
 
     @Test
-    public void multipleHeaders() throws IOException, ServletException {
-        this.request.addHeader(CertificateLoader.HEADER_NAME, CERTIFICATE_1);
-        this.request.addHeader(CertificateLoader.HEADER_NAME, CERTIFICATE_2);
+    public void multipleHeaders() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").header(CertificateLoader.HEADER_NAME, CERTIFICATE_1, CERTIFICATE_2).build();
 
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
+        ServerWebExchange exchange = doFilter(request);
 
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat((X509Certificate[]) this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).hasSize(2);
+        assertThat(exchange.getRequest().getSslInfo().getPeerCertificates()).hasSize(2);
     }
 
     @Test
-    public void multipleInOneHeader() throws IOException, ServletException {
-        this.request.addHeader(CertificateLoader.HEADER_NAME, String.format("%s,%s", CERTIFICATE_1, CERTIFICATE_2));
+    public void multipleInOneHeader() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").header(CertificateLoader.HEADER_NAME, String.format("%s,%s", CERTIFICATE_1, CERTIFICATE_2)).build();
 
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
+        ServerWebExchange exchange = doFilter(request);
 
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat((X509Certificate[]) this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).hasSize(2);
+        assertThat(exchange.getRequest().getSslInfo().getPeerCertificates()).hasSize(2);
     }
 
     @Test
-    public void nginxHeader() throws IOException, ServletException {
+    public void nginxHeader() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").header(CertificateLoader.HEADER_NAME, String.format("%s", NGINX_ESCAPED_CERT)).build();
 
-        this.request.addHeader(CertificateLoader.HEADER_NAME, String.format("%s", NGINX_ESCAPED_CERT));
+        ServerWebExchange exchange = doFilter(request);
 
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
-
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat((X509Certificate[]) this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).hasSize(1);
+        assertThat(exchange.getRequest().getSslInfo().getPeerCertificates()).hasSize(1);
     }
 
     @Test
-    public void noHeader() throws IOException, ServletException {
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
+    public void noHeader()  {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").build();
 
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat(this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
+        ServerWebExchange exchange = doFilter(request);
+
+        assertThat(exchange.getRequest().getSslInfo()).isNull();
     }
-
 }
