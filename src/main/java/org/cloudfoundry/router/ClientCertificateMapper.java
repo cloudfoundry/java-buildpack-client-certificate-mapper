@@ -16,13 +16,13 @@
 
 package org.cloudfoundry.router;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,12 +40,12 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * A Servlet {@link Filter} that translates the {@code X-Forwarded-Client} HTTP header to the {@code javax.servlet.request.X509Certificate} Servlet attribute.  This implementation handles both
+ * A Servlet {@link Filter} that translates the {@code X-Forwarded-Client} HTTP header to the {@code jakarta.servlet.request.X509Certificate} Servlet attribute.  This implementation handles both
  * multiple headers as well as the <a href=https://tools.ietf.org/html/rfc7230#section-3.2.2>RFC 7230</a> comma delimited equivalent.
  */
 final class ClientCertificateMapper implements Filter {
 
-    static final String ATTRIBUTE = "javax.servlet.request.X509Certificate";
+    static final String ATTRIBUTE = "jakarta.servlet.request.X509Certificate";
 
     static final String HEADER = "X-Forwarded-Client-Cert";
 

@@ -6,10 +6,10 @@
 | `unit-test-8` | [![unit-test-master](https://java-experience.ci.springapps.io/api/v1/teams/java-experience/pipelines/client-certificate-mapper/jobs/unit-test-8/badge)](https://java-experience.ci.springapps.io/teams/java-experience/pipelines/client-certificate-mapper/jobs/unit-test-8)
 | `deploy` | [![deploy-master](https://java-experience.ci.springapps.io/api/v1/teams/java-experience/pipelines/client-certificate-mapper/jobs/deploy/badge)](https://java-experience.ci.springapps.io/teams/java-experience/pipelines/client-certificate-mapper/jobs/deploy)
 
-The `java-buildpack-client-certificate-mapper` is a Servlet filter that maps the `X-Forwarded-Client-Cert` to the `javax.servlet.request.X509Certificate` Servlet attribute.
+The `java-buildpack-client-certificate-mapper` is a Servlet filter that maps the `X-Forwarded-Client-Cert` to the `jakarta.servlet.request.X509Certificate` Servlet attribute.
 
 ## Development
-The project depends on Java 7.  To build from source, run the following:
+The project depends on Java 17.  To build from source, run the following:
 
 ```shell
 $ ./mvnw clean package

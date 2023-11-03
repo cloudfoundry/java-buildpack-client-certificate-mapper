@@ -19,10 +19,10 @@ package org.cloudfoundry.router;
 import org.junit.Test;
 import org.springframework.mock.web.MockServletContext;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterRegistration;
-import javax.servlet.ServletException;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterRegistration;
+import jakarta.servlet.ServletException;
 import java.util.EnumSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
