@@ -1,3 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-org.cloudfoundry.router.jakarta.ClientCertificateMapperAutoConfiguration,\
 org.cloudfoundry.router.javax.ClientCertificateMapperAutoConfiguration
