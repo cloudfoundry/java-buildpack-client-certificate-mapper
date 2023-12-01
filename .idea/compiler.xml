@@ -7,15 +7,18 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="java-buildpack-client-certificate-mapper" />
+        <module name="java-buildpack-client-certificate-mapper-jakarta" />
+        <module name="java-buildpack-client-certificate-mapper-javax" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="java-buildpack-client-certificate-mapper" target="1.8" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="java-buildpack-client-certificate-mapper" options="-Werror -Xlint:all -Xlint:-options" />
+      <module name="java-buildpack-client-certificate-mapper" options="-Werror -Xlint:all -Xlint:-options -Xlint:-processing" />
+      <module name="java-buildpack-client-certificate-mapper-jakarta" options="-Werror -Xlint:all -Xlint:-options -Xlint:-processing" />
+      <module name="java-buildpack-client-certificate-mapper-javax" options="-Werror -Xlint:all -Xlint:-options -Xlint:-processing" />
     </option>
   </component>
 </project>
