@@ -27,10 +27,31 @@
     <artifactId>java-buildpack-client-certificate-mapper-parent</artifactId>
     <version>2.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
+    <name>Cloud Foundry Client Certificate Mapper</name>
+    <description>Cloud Foundry Client Certificate Mapper</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <developers>
+        <developer>
+            <name>VMware</name>
+            <email>info@vmware.com</email>
+            <organization>VMware, Inc.</organization>
+            <organizationUrl>https://www.cloudfoundry.org</organizationUrl>
+        </developer>
+    </developers>
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <url>https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper</url>
+    <scm>
+        <url>https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper</url>
+    </scm>
 
     <modules>
         <module>java-buildpack-client-certificate-mapper</module>
@@ -87,41 +108,30 @@
                     </configuration>
                 </plugin>
                 <plugin>
-                    <groupId>org.jfrog.buildinfo</groupId>
-                    <artifactId>artifactory-maven-plugin</artifactId>
-                    <version>3.6.2</version>
-                    <inherited>false</inherited>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.6.3</version>
+                    <configuration>
+                        <links>
+                            <link>https://projectreactor.io/docs/core/release/api/</link>
+                        </links>
+<!--                        <quiet>true</quiet>-->
+                        <source>8</source>
+                        <additionalOptions>
+                            <additionalOption>-Xdoclint:none</additionalOption>
+                        </additionalOptions>
+                    </configuration>
                     <executions>
                         <execution>
-                            <id>build-info</id>
+                            <id>attach-javadocs</id>
                             <goals>
-                                <goal>publish</goal>
+                                <goal>jar</goal>
                             </goals>
-                            <configuration>
-                                <publisher>
-                                    <contextUrl>https://repo.spring.io</contextUrl>
-                                    <username>{{ARTIFACTORY_USERNAME}}</username>
-                                    <password>{{ARTIFACTORY_PASSWORD}}</password>
-                                    <repoKey>{{ARTIFACTORY_REPO_KEY|"libs-release-local"}}</repoKey>
-                                    <snapshotRepoKey>{{ARTIFACTORY_SNAPSHOT_REPO_KEY|"libs-snapshot-local"}}</snapshotRepoKey>
-                                </publisher>
-                            </configuration>
                         </execution>
                     </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
     </build>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>central</id>
-            <name>bintray-plugins</name>
-            <url>https://jcenter.bintray.com</url>
-        </pluginRepository>
-    </pluginRepositories>
 
 </project>
