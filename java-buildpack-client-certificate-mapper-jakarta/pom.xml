@@ -26,7 +26,7 @@
     <parent>
         <groupId>org.cloudfoundry</groupId>
         <artifactId>java-buildpack-client-certificate-mapper-parent</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.0.0</version>
     </parent>
 
     <artifactId>java-buildpack-client-certificate-mapper-jakarta</artifactId>
