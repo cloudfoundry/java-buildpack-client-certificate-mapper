@@ -1,5 +1,6 @@
-.idea/libraries
-.idea/tasks.xml
-.idea/workspace.xml
+.idea/
+# Maven Shade plugin output
 dependency-reduced-pom.xml
-target
+# Maven build output
+target/
+**/target/
