@@ -67,7 +67,7 @@
                 Not ideal to merge 2 jars blindly with this plugin, but... after dropping all transitive dependencies from the 2 jars, we found ourselves in a situation where javadoc could not
                    resolve spring and other libraries and hence failed running. Adding manually additional libraries to the Javadoc plugin could work but is not maintainable.
                    -->
-                <version>3.1.0</version>
+                <version>3.2.0</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -87,7 +87,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>3.1.4</version>
                 <executions>
                     <!--  the default execution is normally first; but I want to force javadoc first, since it will publish an invalid pom, that will be overwritten  -->
                     <execution>
@@ -106,9 +106,9 @@
                         <configuration>
                             <file>target/${project.artifactId}-${version}-javadoc.jar</file>
                             <url>file://${env.REPOSITORY}</url>
-                            <groupId>${groupId}</groupId>
-                            <artifactId>${artifactId}</artifactId>
-                            <version>${version}</version>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>${project.artifactId}</artifactId>
+                            <version>${project.version}</version>
                             <packaging>javadoc</packaging>
                         </configuration>
                     </execution>
