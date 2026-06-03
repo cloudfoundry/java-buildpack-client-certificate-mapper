@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (e.g. 2.0.2)'
+        required: true
+      next_snapshot_version:
+        description: 'Next development version (e.g. 2.0.3-SNAPSHOT)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5.2.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set release version
+        run: ./mvnw versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
+
+      - name: Commit and tag release
+        run: |
+          git add .
+          git commit --message "v${{ inputs.release_version }} Release"
+          git tag v${{ inputs.release_version }}
+
+      - name: Build release
+        run: ./mvnw -q package -DskipTests
+
+      - name: Collect artifacts
+        id: artifacts
+        run: |
+          JAR=$(ls java-buildpack-client-certificate-mapper/target/java-buildpack-client-certificate-mapper-${{ inputs.release_version }}.jar \
+                | grep -v 'sources\|javadoc\|original' | head -1)
+          SOURCES=$(ls java-buildpack-client-certificate-mapper/target/java-buildpack-client-certificate-mapper-${{ inputs.release_version }}-sources.jar \
+                    | head -1)
+          echo "jar=$JAR" >> $GITHUB_OUTPUT
+          echo "sources=$SOURCES" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v${{ inputs.release_version }} \
+            --title "v${{ inputs.release_version }}" \
+            --generate-notes \
+            "${{ steps.artifacts.outputs.jar }}" \
+            "${{ steps.artifacts.outputs.sources }}"
+
+      - name: Set next snapshot version
+        run: ./mvnw versions:set -DnewVersion=${{ inputs.next_snapshot_version }} -DgenerateBackupPoms=false
+
+      - name: Commit next snapshot version
+        run: |
+          git add .
+          git commit --message "v${{ inputs.next_snapshot_version }} Development"
+
+      - name: Push commits and tag
+        run: |
+          git push origin main
+          git push origin v${{ inputs.release_version }}
