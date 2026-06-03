@@ -5,7 +5,7 @@
 | CI | [![CI](https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/actions/workflows/ci.yml/badge.svg)](https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/actions/workflows/ci.yml) |
 | Release | [![Release](https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/actions/workflows/release.yml/badge.svg)](https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/actions/workflows/release.yml) |
 
-The `java-buildpack-client-certificate-mapper` is a Servlet filter that maps the `X-Forwarded-Client-Cert` header to the `javax.servlet.request.X509Certificate` (javax) or `jakarta.servlet.request.X509Certificate` (jakarta) Servlet attribute.
+The `java-buildpack-client-certificate-mapper` is a Servlet filter that maps the [`X-Forwarded-Client-Cert`][xfcc] header to the `javax.servlet.request.X509Certificate` (javax) or `jakarta.servlet.request.X509Certificate` (jakarta) Servlet attribute. Both raw PEM and [Envoy XFCC format][xfcc] are supported.
 
 ## Download
 
@@ -22,6 +22,21 @@ The project requires Java 8. To build and test from source:
 $ ./mvnw clean package
 ```
 
+## XFCC Header Format
+
+The filter supports both the raw PEM certificate format and the [Envoy XFCC format][xfcc]. In XFCC format, the header contains key-value fields such as `Hash=`, `Cert=`, and `Subject=`. Field names are matched case-insensitively. Multiple header values and the [RFC 9110][rfc9110] comma-delimited equivalent are both supported.
+
+The `Hash=` field (a SHA-256 fingerprint of the leaf certificate, set by the router) is used as a cache key when present, avoiding repeated certificate parsing for the same request.
+
+**Specifications:**
+- [Envoy `x-forwarded-client-cert` header][xfcc] — XFCC field definitions (`By=`, `Hash=`, `Cert=`, `Subject=`, `URI=`, `DNS=`)
+- [RFC 9110 §5.3][rfc9110] — HTTP header comma-delimited field values
+- [Jakarta Servlet 6.0 specification][servlet-spec] — `jakarta.servlet.request.X509Certificate` attribute
+
+## Debug Logging
+
+The filter uses Java Util Logging (JUL). To enable debug output, set the logger level for `org.cloudfoundry.router` to `FINE`. When enabled, the filter logs the XFCC field names present in each header (e.g. `Hash`, `Cert`, `Subject`). Certificate values are never logged.
+
 ## CI / Workflows
 
 | Workflow | Trigger | Description |
@@ -31,12 +46,11 @@ $ ./mvnw clean package
 
 All workflows can be triggered manually from **Actions → select workflow → Run workflow** in the GitHub UI.
 
-## Contributing
-[Pull requests][u] and [Issues][e] are welcome.
-
 ## License
 This project is released under version 2.0 of the [Apache License][l].
 
 [e]: https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/issues
 [l]: https://www.apache.org/licenses/LICENSE-2.0
-[u]: https://help.github.com/articles/using-pull-requests
+[xfcc]: https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-client-cert
+[rfc9110]: https://www.rfc-editor.org/rfc/rfc9110#section-5.3
+[servlet-spec]: https://jakarta.ee/specifications/servlet/6.0/

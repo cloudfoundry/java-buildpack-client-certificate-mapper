@@ -188,7 +188,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void xfccHashOnly() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, "Hash=078c0ea84e084ea1c8bf4719ede79c5b");
+        this.request.addHeader(ClientCertificateMapper.HEADER, "Hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -198,7 +198,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void xfccWithCert() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, "By=spiffe%3A%2F%2Fcluster.local;Hash=078c0ea84e084ea1c8bf4719ede79c5b;Cert=" + NGINX_ESCAPED_CERT);
+        this.request.addHeader(ClientCertificateMapper.HEADER, "By=spiffe%3A%2F%2Fcluster.local;Hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b;Cert=" + NGINX_ESCAPED_CERT);
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -208,7 +208,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void xfccCaseInsensitiveKeys() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, "hash=078c0ea84e084ea1c8bf4719ede79c5b");
+        this.request.addHeader(ClientCertificateMapper.HEADER, "hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
@@ -218,17 +218,7 @@ public final class ClientCertificateMapperTest {
 
     @Test
     public void xfccCaseInsensitiveCert() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, "hash=078c0ea84e084ea1c8bf4719ede79c5b;cert=" + NGINX_ESCAPED_CERT);
-
-        this.mapper.doFilter(this.request, this.response, this.filterChain);
-
-        assertThat(this.filterChain.getRequest()).isNotNull();
-        assertThat((X509Certificate[]) this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).hasSize(1);
-    }
-
-    @Test
-    public void xfccChainFallback() throws IOException, ServletException {
-        this.request.addHeader(ClientCertificateMapper.HEADER, "Hash=078c0ea84e084ea1c8bf4719ede79c5b;Chain=" + NGINX_ESCAPED_CERT);
+        this.request.addHeader(ClientCertificateMapper.HEADER, "hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b;cert=" + NGINX_ESCAPED_CERT);
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 

@@ -49,7 +49,7 @@ final class ClientCertificateMapper implements Filter {
 
     static final String HEADER = "X-Forwarded-Client-Cert";
 
-    private static final List<String> XFCC_KEYS = Arrays.asList("By=", "Hash=", "Cert=", "Chain=", "Subject=", "URI=", "DNS=");
+    private static final List<String> XFCC_KEYS = Arrays.asList("By=", "Hash=", "Cert=", "Subject=", "URI=", "DNS=");
 
     private final Logger logger = Logger.getLogger(this.getClass().getName());
 
@@ -100,7 +100,7 @@ final class ClientCertificateMapper implements Filter {
      * Quoted values (e.g. Subject="/C=US;L=SF") are returned without the surrounding quotes.
      * Note: a quoted value containing a literal ";" will be split at that semicolon
      * by the outer loop in {@link #parseCertificate}, but this is harmless for the
-     * URL-encoded fields (Cert, Chain, Hash) this mapper actually reads.
+     * URL-encoded fields (Cert, Hash) this mapper actually reads.
      */
     private String extractFieldFromXfcc(String xfccEntry, String fieldPrefix) {
         int start = 0;
@@ -176,14 +176,22 @@ final class ClientCertificateMapper implements Filter {
         return names.toString();
     }
 
+    private static final java.util.regex.Pattern SHA256_HEX = java.util.regex.Pattern.compile("[0-9a-fA-F]{64}");
+
     private X509Certificate parseCertificate(String rawValue) throws CertificateException, IOException {
         if (isXfccFormat(rawValue)) {
-            this.logger.fine("XFCC entry received with fields: " + xfccFieldNames(rawValue));
+            if (this.logger.isLoggable(java.util.logging.Level.FINE)) {
+                this.logger.fine("XFCC entry received with fields: " + xfccFieldNames(rawValue));
+            }
+            String hash = extractFieldFromXfcc(rawValue, "Hash=");
+            if (hash != null && !SHA256_HEX.matcher(hash).matches()) {
+                this.logger.warning("X-Forwarded-Client-Cert Hash= value does not look like a SHA-256 hex digest: " + hash);
+            }
             String certData = extractFieldFromXfcc(rawValue, "Cert=");
             if (certData == null) {
-                certData = extractFieldFromXfcc(rawValue, "Chain=");
-            }
-            if (certData == null) {
+                if (extractFieldFromXfcc(rawValue, "Chain=") != null) {
+                    this.logger.warning("X-Forwarded-Client-Cert contains Chain= but no Cert= field; Chain= is not supported and the certificate will not be mapped.");
+                }
                 return null;
             }
             return generateCertificate(certData);
