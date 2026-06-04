@@ -36,7 +36,7 @@ If an entry passes the structural check but contains none of the recognised cert
 
 ### Request attributes set from XFCC fields
 
-When the header is in XFCC format, the filter sets the following request attributes (first entry wins for multi-entry headers):
+When the header is in XFCC format, the filter sets the following request attributes (first entry that contains the field wins for multi-entry headers):
 
 | Attribute | XFCC field | Value |
 |-----------|------------|-------|
