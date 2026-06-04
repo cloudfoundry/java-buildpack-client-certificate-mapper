@@ -26,7 +26,7 @@ $ ./mvnw clean package
 
 The filter supports both the raw PEM certificate format and the [Envoy XFCC format][xfcc]. In XFCC format, the header contains key-value fields such as `Hash=`, `Cert=`, and `Subject=`. Field names are matched case-insensitively. Multiple header values and the [RFC 9110][rfc9110] comma-delimited equivalent are both supported.
 
-The `Hash=` field (a SHA-256 fingerprint of the leaf certificate, set by the router) is used as a cache key when present, avoiding repeated certificate parsing for the same request.
+The `Hash=` field (a SHA-256 fingerprint of the leaf certificate, set by the router) is recognised for format detection and optionally sanity-checked, but it cannot be mapped to an `X509Certificate` without a `Cert=` field.
 
 **Specifications:**
 - [Envoy `x-forwarded-client-cert` header][xfcc] — XFCC field definitions (`By=`, `Hash=`, `Cert=`, `Subject=`, `URI=`, `DNS=`)

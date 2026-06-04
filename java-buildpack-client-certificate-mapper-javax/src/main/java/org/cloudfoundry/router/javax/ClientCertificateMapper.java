@@ -49,7 +49,7 @@ final class ClientCertificateMapper implements Filter {
 
     static final String HEADER = "X-Forwarded-Client-Cert";
 
-    private static final List<String> XFCC_KEYS = Arrays.asList("By=", "Hash=", "Cert=", "Subject=", "URI=", "DNS=");
+    private static final List<String> XFCC_KEYS = Arrays.asList("By=", "Hash=", "Cert=", "Chain=", "Subject=", "URI=", "DNS=");
 
     private final Logger logger = Logger.getLogger(this.getClass().getName());
 
@@ -98,9 +98,9 @@ final class ClientCertificateMapper implements Filter {
     /**
      * Extracts a field value from an XFCC entry. Keys are matched case-insensitively.
      * Quoted values (e.g. Subject="/C=US;L=SF") are returned without the surrounding quotes.
-     * Note: a quoted value containing a literal ";" will be split at that semicolon
-     * by the outer loop in {@link #parseCertificate}, but this is harmless for the
-     * URL-encoded fields (Cert, Hash) this mapper actually reads.
+     * Extracts a field value from an XFCC entry. Keys are matched case-insensitively.
+     * Quoted values (e.g. Subject="/C=US;L=SF") are returned without the surrounding quotes.
+     * Semicolons inside double quotes are not treated as field separators.
      */
     private String extractFieldFromXfcc(String xfccEntry, String fieldPrefix) {
         int start = 0;
