@@ -16,6 +16,7 @@
 
 package org.cloudfoundry.router;
 
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -38,7 +39,7 @@ public final class XfccEntry {
 
     public XfccEntry(String raw) {
         this.xfcc = isXfccFormat(raw);
-        this.fields = xfcc ? parseOnce(raw) : new EnumMap<>(XfccField.class);
+        this.fields = xfcc ? parseOnce(raw) : Collections.emptyMap();
     }
 
     /** Returns true if the entry is XFCC format and contains at least one of Hash=, Cert=, or Chain=. */
@@ -71,22 +72,23 @@ public final class XfccEntry {
     }
 
     /**
-     * Structural XFCC format check: the entry must start with a short (≤ {@value #MAX_KEY_LENGTH} chars)
-     * all-letter key followed by {@code =}. This distinguishes XFCC from raw base64 or PEM certs,
-     * whose first {@code =} (base64 padding) appears much later in the string.
+     * Structural XFCC format check: scans at most {@value #MAX_KEY_LENGTH} characters looking for
+     * an all-letter key followed by {@code =}. Stops early on any non-letter, non-{@code =} character.
+     * This is O(1) and avoids scanning the full string for raw base64/PEM certs.
      * Note: JSON format (e.g. {@code {"hash":"..."}}) is not supported.
      */
     private static boolean isXfccFormat(String raw) {
-        int eq = raw.indexOf('=');
-        if (eq <= 0 || eq > MAX_KEY_LENGTH) {
-            return false;
-        }
-        for (int i = 0; i < eq; i++) {
-            if (!Character.isLetter(raw.charAt(i))) {
+        int limit = Math.min(raw.length(), MAX_KEY_LENGTH + 1);
+        for (int i = 0; i < limit; i++) {
+            char c = raw.charAt(i);
+            if (c == '=') {
+                return i > 0;
+            }
+            if (!Character.isLetter(c)) {
                 return false;
             }
         }
-        return true;
+        return false;
     }
 
     private static Map<XfccField, String> parseOnce(String raw) {
