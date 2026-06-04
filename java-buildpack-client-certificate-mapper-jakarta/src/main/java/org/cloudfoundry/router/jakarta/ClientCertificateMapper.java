@@ -32,10 +32,8 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -48,8 +46,6 @@ final class ClientCertificateMapper implements Filter {
     static final String ATTRIBUTE = "jakarta.servlet.request.X509Certificate";
 
     static final String HEADER = "X-Forwarded-Client-Cert";
-
-    private static final List<String> XFCC_KEYS = Arrays.asList("By=", "Hash=", "Cert=", "Chain=", "Subject=", "URI=", "DNS=");
 
     private final Logger logger = Logger.getLogger(this.getClass().getName());
 
@@ -86,65 +82,6 @@ final class ClientCertificateMapper implements Filter {
 
     }
 
-    private boolean isXfccFormat(String value) {
-        for (String key : XFCC_KEYS) {
-            if (value.regionMatches(true, 0, key, 0, key.length())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Extracts a field value from an XFCC entry. Keys are matched case-insensitively.
-     * Quoted values (e.g. Subject="/C=US;L=SF") are returned without the surrounding quotes.
-     * Semicolons inside double quotes are not treated as field separators.
-     */
-    private String extractFieldFromXfcc(String xfccEntry, String fieldPrefix) {
-        int start = 0;
-        int len = xfccEntry.length();
-        while (start < len) {
-            int end = findFieldEnd(xfccEntry, start, len);
-            if (xfccEntry.regionMatches(true, start, fieldPrefix, 0, fieldPrefix.length())) {
-                String value = xfccEntry.substring(start + fieldPrefix.length(), end);
-                if (value.length() >= 2 && value.charAt(0) == '"' && value.charAt(value.length() - 1) == '"') {
-                    value = value.substring(1, value.length() - 1).replace("\\\"", "\"");
-                }
-                return value;
-            }
-            start = end + 1;
-        }
-        return null;
-    }
-
-    /**
-     * Returns the end index (exclusive) of the current field starting at {@code start}.
-     * Respects double-quoted values so that a {@code ;} inside quotes is not treated as
-     * a field separator (e.g. {@code Subject="/C=US;L=SF"}).
-     */
-    private int findFieldEnd(String entry, int start, int len) {
-        int eq = entry.indexOf('=', start);
-        if (eq < 0) return len;
-        int valueStart = eq + 1;
-        if (valueStart < len && entry.charAt(valueStart) == '"') {
-            int i = valueStart + 1;
-            while (i < len) {
-                char c = entry.charAt(i);
-                if (c == '\\') {
-                    i += 2;
-                } else if (c == '"') {
-                    i++;
-                    return i; // end is after closing quote
-                } else {
-                    i++;
-                }
-            }
-            return len;
-        }
-        int semi = entry.indexOf(';', valueStart);
-        return semi < 0 ? len : semi;
-    }
-
     private byte[] decodeHeader(String rawCertificate) {
         try {
             return Base64.getDecoder().decode(rawCertificate);
@@ -163,31 +100,18 @@ final class ClientCertificateMapper implements Filter {
         }
     }
 
-    private String xfccFieldNames(String xfccEntry) {
-        StringBuilder names = new StringBuilder();
-        for (String key : XFCC_KEYS) {
-            if (extractFieldFromXfcc(xfccEntry, key) != null) {
-                if (names.length() > 0) names.append(", ");
-                names.append(key, 0, key.length() - 1); // strip trailing '='
-            }
-        }
-        return names.toString();
-    }
-
-    private static final java.util.regex.Pattern SHA256_HEX = java.util.regex.Pattern.compile("[0-9a-fA-F]{64}");
-
     private X509Certificate parseCertificate(String rawValue) throws CertificateException, IOException {
-        if (isXfccFormat(rawValue)) {
+        if (XfccHeaderParser.isXfccFormat(rawValue)) {
             if (this.logger.isLoggable(java.util.logging.Level.FINE)) {
-                this.logger.fine("XFCC entry received with fields: " + xfccFieldNames(rawValue));
+                this.logger.fine("XFCC entry received with fields: " + XfccHeaderParser.xfccFieldNames(rawValue));
             }
-            String hash = extractFieldFromXfcc(rawValue, "Hash=");
-            if (hash != null && !SHA256_HEX.matcher(hash).matches()) {
+            String hash = XfccHeaderParser.extractFieldFromXfcc(rawValue, XfccField.HASH);
+            if (hash != null && !XfccHeaderParser.isValidSha256Hex(hash)) {
                 this.logger.warning("X-Forwarded-Client-Cert Hash= value does not look like a SHA-256 hex digest");
             }
-            String certData = extractFieldFromXfcc(rawValue, "Cert=");
+            String certData = XfccHeaderParser.extractFieldFromXfcc(rawValue, XfccField.CERT);
             if (certData == null) {
-                if (extractFieldFromXfcc(rawValue, "Chain=") != null) {
+                if (XfccHeaderParser.extractFieldFromXfcc(rawValue, XfccField.CHAIN) != null) {
                     this.logger.warning("X-Forwarded-Client-Cert contains Chain= but no Cert= field; Chain= is not supported and the certificate will not be mapped.");
                 }
                 return null;
@@ -211,37 +135,7 @@ final class ClientCertificateMapper implements Filter {
     }
 
     private List<String> getRawCertificates(HttpServletRequest request) {
-        Enumeration<String> candidates = request.getHeaders(HEADER);
-
-        if (candidates == null) {
-            return Collections.emptyList();
-        }
-
-        List<String> rawCertificates = new ArrayList<>();
-        while (candidates.hasMoreElements()) {
-            String candidate = candidates.nextElement();
-
-            if (candidate == null || candidate.isEmpty()) {
-                continue;
-            }
-
-            if (hasMultipleCertificates(candidate)) {
-                for (String part : candidate.split(",")) {
-                    String trimmed = part.trim();
-                    if (!trimmed.isEmpty()) {
-                        rawCertificates.add(trimmed);
-                    }
-                }
-            } else {
-                rawCertificates.add(candidate);
-            }
-        }
-
-        return rawCertificates;
-    }
-
-    private boolean hasMultipleCertificates(String candidate) {
-        return candidate.indexOf(',') != -1;
+        return XfccHeaderParser.splitHeaderValues(Collections.list(request.getHeaders(HEADER)));
     }
 
 }

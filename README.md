@@ -49,7 +49,6 @@ All workflows can be triggered manually from **Actions → select workflow → R
 ## License
 This project is released under version 2.0 of the [Apache License][l].
 
-[e]: https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/issues
 [l]: https://www.apache.org/licenses/LICENSE-2.0
 [xfcc]: https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-client-cert
 [rfc9110]: https://www.rfc-editor.org/rfc/rfc9110#section-5.3
