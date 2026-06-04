@@ -43,12 +43,17 @@ public final class XfccEntry {
 
     /** Returns true if the entry is XFCC format and contains at least one of Hash=, Cert=, or Chain=. */
     public boolean resemblesXfcc() {
-        return xfcc && (fields.containsKey(XfccField.HASH) || fields.containsKey(XfccField.CERT) || fields.containsKey(XfccField.CHAIN));
+        return xfcc && (hasField(XfccField.HASH) || hasField(XfccField.CERT) || hasField(XfccField.CHAIN));
     }
 
     /** Returns the value of the given field, or {@code null} if absent. */
     public String get(XfccField field) {
         return fields.get(field);
+    }
+
+    /** Returns true if the given field is present in this entry. */
+    public boolean hasField(XfccField field) {
+        return fields.containsKey(field);
     }
 
     /** Returns a comma-separated list of known field names present in this entry, in declaration order. */

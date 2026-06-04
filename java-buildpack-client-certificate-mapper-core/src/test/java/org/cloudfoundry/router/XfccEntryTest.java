@@ -46,6 +46,20 @@ public final class XfccEntryTest {
     }
 
     @Test
+    public void hasFieldReturnsTrueForPresentField() {
+        XfccEntry entry = new XfccEntry("Hash=abc;Cert=xyz");
+        assertThat(entry.hasField(XfccField.HASH)).isTrue();
+        assertThat(entry.hasField(XfccField.CERT)).isTrue();
+    }
+
+    @Test
+    public void hasFieldReturnsFalseForAbsentField() {
+        XfccEntry entry = new XfccEntry("Hash=abc;Cert=xyz");
+        assertThat(entry.hasField(XfccField.CHAIN)).isFalse();
+        assertThat(entry.hasField(XfccField.SUBJECT)).isFalse();
+    }
+
+    @Test
     public void getMissingFieldReturnsNull() {
         XfccEntry entry = new XfccEntry("Hash=abc;Cert=xyz");
         assertThat(entry.get(XfccField.CHAIN)).isNull();

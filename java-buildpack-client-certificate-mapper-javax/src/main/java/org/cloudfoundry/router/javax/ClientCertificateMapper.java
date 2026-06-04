@@ -110,17 +110,16 @@ final class ClientCertificateMapper implements Filter {
                 this.logger.fine("XFCC entry received with fields: " + xfcc.fieldNames());
             }
             String hash = xfcc.get(XfccField.HASH);
-            if (hash != null && !XfccHeaderParser.isValidSha256Hex(hash)) {
+            if (xfcc.hasField(XfccField.HASH) && !XfccHeaderParser.isValidSha256Hex(hash)) {
                 this.logger.warning("X-Forwarded-Client-Cert Hash= value does not look like a SHA-256 hex digest");
             }
-            String certData = xfcc.get(XfccField.CERT);
-            if (certData == null) {
-                if (xfcc.get(XfccField.CHAIN) != null) {
+            if (!xfcc.hasField(XfccField.CERT)) {
+                if (xfcc.hasField(XfccField.CHAIN)) {
                     this.logger.warning("X-Forwarded-Client-Cert contains Chain= but no Cert= field; Chain= is not supported and the certificate will not be mapped.");
                 }
                 return null;
             }
-            return generateCertificate(certData);
+            return generateCertificate(xfcc.get(XfccField.CERT));
         }
         return generateCertificate(rawValue);
     }
