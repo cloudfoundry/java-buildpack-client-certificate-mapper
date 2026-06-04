@@ -14,29 +14,29 @@
  * limitations under the License.
  */
 
-package org.cloudfoundry.router.jakarta;
+package org.cloudfoundry.router;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
-final class XfccHeaderParser {
+public final class XfccHeaderParser {
 
     private static final Pattern SHA256_HEX = Pattern.compile("[0-9a-fA-F]{64}");
 
-    static boolean isValidSha256Hex(String value) {
-        return SHA256_HEX.matcher(value).matches();
+    private XfccHeaderParser() {
     }
 
-    private XfccHeaderParser() {
+    public static boolean isValidSha256Hex(String value) {
+        return SHA256_HEX.matcher(value).matches();
     }
 
     /**
      * Splits comma-delimited HTTP header values (RFC 9110) into individual entries,
      * trimming optional whitespace around each entry and skipping blank values.
      */
-    static List<String> splitHeaderValues(List<String> headerValues) {
+    public static List<String> splitHeaderValues(List<String> headerValues) {
         if (headerValues == null) {
             return Collections.emptyList();
         }
@@ -60,7 +60,7 @@ final class XfccHeaderParser {
         return result;
     }
 
-    static boolean isXfccFormat(String value) {
+    public static boolean isXfccFormat(String value) {
         for (XfccField field : XfccField.values()) {
             if (value.regionMatches(true, 0, field.key, 0, field.key.length())) {
                 return true;
@@ -74,7 +74,7 @@ final class XfccHeaderParser {
      * Quoted values (e.g. Subject="/C=US;L=SF") are returned without the surrounding quotes.
      * Semicolons inside double quotes are not treated as field separators.
      */
-    static String extractFieldFromXfcc(String xfccEntry, XfccField field) {
+    public static String extractFieldFromXfcc(String xfccEntry, XfccField field) {
         String fieldPrefix = field.key;
         int start = 0;
         int len = xfccEntry.length();
@@ -120,7 +120,7 @@ final class XfccHeaderParser {
         return semi < 0 ? len : semi;
     }
 
-    static String xfccFieldNames(String xfccEntry) {
+    public static String xfccFieldNames(String xfccEntry) {
         StringBuilder names = new StringBuilder();
         for (XfccField field : XfccField.values()) {
             if (extractFieldFromXfcc(xfccEntry, field) != null) {

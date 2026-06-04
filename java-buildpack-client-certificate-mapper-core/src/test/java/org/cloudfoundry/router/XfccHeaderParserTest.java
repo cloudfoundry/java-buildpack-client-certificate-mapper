@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.cloudfoundry.router.jakarta;
+package org.cloudfoundry.router;
 
 import org.junit.jupiter.api.Test;
 

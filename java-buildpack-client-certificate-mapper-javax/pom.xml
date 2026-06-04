@@ -50,6 +50,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.cloudfoundry</groupId>
+            <artifactId>java-buildpack-client-certificate-mapper-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <scope>test</scope>

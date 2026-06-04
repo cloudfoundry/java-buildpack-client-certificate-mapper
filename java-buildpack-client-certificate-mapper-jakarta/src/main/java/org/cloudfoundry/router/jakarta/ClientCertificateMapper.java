@@ -36,6 +36,8 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
+import org.cloudfoundry.router.XfccField;
+import org.cloudfoundry.router.XfccHeaderParser;
 
 /**
  * A Servlet {@link Filter} that translates the {@code X-Forwarded-Client} HTTP header to the {@code jakarta.servlet.request.X509Certificate} Servlet attribute.  This implementation handles both

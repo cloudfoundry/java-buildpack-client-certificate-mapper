@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package org.cloudfoundry.router.jakarta;
+package org.cloudfoundry.router;
 
 /**
  * Known field names in an X-Forwarded-Client-Cert (XFCC) header entry.
  * Each constant's {@code key} holds the exact prefix used in the header value (e.g. {@code "Hash="}).
  */
-enum XfccField {
+public enum XfccField {
     BY("By="),
     HASH("Hash="),
     CERT("Cert="),
@@ -29,7 +29,7 @@ enum XfccField {
     URI("URI="),
     DNS("DNS=");
 
-    final String key;
+    public final String key;
 
     XfccField(String key) {
         this.key = key;
