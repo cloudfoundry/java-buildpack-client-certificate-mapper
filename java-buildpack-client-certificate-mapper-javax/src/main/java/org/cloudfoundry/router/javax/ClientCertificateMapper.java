@@ -183,7 +183,7 @@ final class ClientCertificateMapper implements Filter {
             }
             String hash = extractFieldFromXfcc(rawValue, "Hash=");
             if (hash != null && !SHA256_HEX.matcher(hash).matches()) {
-                this.logger.warning("X-Forwarded-Client-Cert Hash= value does not look like a SHA-256 hex digest: " + hash);
+                this.logger.warning("X-Forwarded-Client-Cert Hash= value does not look like a SHA-256 hex digest");
             }
             String certData = extractFieldFromXfcc(rawValue, "Cert=");
             if (certData == null) {
@@ -227,8 +227,9 @@ final class ClientCertificateMapper implements Filter {
 
             if (hasMultipleCertificates(candidate)) {
                 for (String part : candidate.split(",")) {
-                    if (!part.isEmpty()) {
-                        rawCertificates.add(part);
+                    String trimmed = part.trim();
+                    if (!trimmed.isEmpty()) {
+                        rawCertificates.add(trimmed);
                     }
                 }
             } else {
