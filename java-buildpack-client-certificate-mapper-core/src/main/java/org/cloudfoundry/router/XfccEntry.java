@@ -119,6 +119,7 @@ public final class XfccEntry {
     /**
      * Reads a field value starting at {@code start}: strips surrounding quotes and
      * unescapes {@code \"} if quoted, otherwise reads up to the next {@code ;}.
+     * Malformed input (unclosed quote, trailing backslash) is handled gracefully.
      */
     private static String readValue(String raw, int start, int len) {
         if (start < len && raw.charAt(start) == '"') {
@@ -126,14 +127,14 @@ public final class XfccEntry {
             while (end < len) {
                 char c = raw.charAt(end);
                 if (c == '\\') {
-                    end += 2;
+                    end = Math.min(end + 2, len);
                 } else if (c == '"') {
                     break;
                 } else {
                     end++;
                 }
             }
-            return raw.substring(start + 1, end).replace("\\\"", "\"");
+            return raw.substring(start + 1, Math.min(end, len)).replace("\\\"", "\"");
         }
         int semi = raw.indexOf(';', start);
         return raw.substring(start, semi < 0 ? len : semi);
@@ -142,6 +143,7 @@ public final class XfccEntry {
     /**
      * Returns the start position of the next field after the field beginning at {@code pos},
      * correctly skipping over quoted values that may contain {@code ;}.
+     * Malformed input (unclosed quote, trailing backslash) is handled gracefully.
      */
     private static int skipToNextField(String raw, int pos, int len) {
         int eq = raw.indexOf('=', pos);
@@ -154,7 +156,7 @@ public final class XfccEntry {
             while (i < len) {
                 char c = raw.charAt(i++);
                 if (c == '\\') {
-                    i++;
+                    i = Math.min(i + 1, len);
                 } else if (c == '"') {
                     return (i < len && raw.charAt(i) == ';') ? i + 1 : i;
                 }

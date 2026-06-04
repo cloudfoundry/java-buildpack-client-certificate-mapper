@@ -104,4 +104,23 @@ public final class XfccEntryTest {
         assertThat(entry.resemblesXfcc()).isFalse();
         assertThat(entry.get(XfccField.CERT)).isNull();
     }
+
+    @Test
+    public void malformedTrailingBackslashInQuotedValueDoesNotThrow() {
+        // Subject="abc\ — trailing backslash, no closing quote
+        XfccEntry entry = new XfccEntry("Hash=abc;Subject=\"abc\\");
+        assertThat(entry.resemblesXfcc()).isTrue();
+        assertThat(entry.get(XfccField.HASH)).isEqualTo("abc");
+        // malformed value: partial content returned, no exception
+        assertThat(entry.get(XfccField.SUBJECT)).isNotNull();
+    }
+
+    @Test
+    public void malformedUnclosedQuoteDoesNotThrow() {
+        // Subject=" — quote opened but never closed
+        XfccEntry entry = new XfccEntry("Hash=abc;Subject=\"unclosed");
+        assertThat(entry.resemblesXfcc()).isTrue();
+        assertThat(entry.get(XfccField.HASH)).isEqualTo("abc");
+        assertThat(entry.get(XfccField.SUBJECT)).isNotNull();
+    }
 }
