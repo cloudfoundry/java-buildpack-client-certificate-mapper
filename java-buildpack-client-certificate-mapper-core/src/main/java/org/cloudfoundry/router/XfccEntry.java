@@ -100,7 +100,7 @@ public final class XfccEntry {
             if (field != null) {
                 result.put(field, readValue(raw, pos + field.key.length(), len));
             } else if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.fine("X-Forwarded-Client-Cert contains unknown field at position " + pos + " in: " + raw);
+                LOGGER.fine("X-Forwarded-Client-Cert contains unknown field at position " + pos);
             }
             pos = skipToNextField(raw, pos, len);
         }

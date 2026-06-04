@@ -67,4 +67,18 @@ public final class XfccHeaderParserTest {
         assertThat(result).containsExactly("By=a;Cert=x", "By=b;Cert=y");
     }
 
+    @Test
+    public void commaInsideQuotedFieldIsNotSplit() {
+        List<String> result = XfccHeaderParser.splitHeaderValues(
+            Arrays.asList("Hash=abc;Subject=\"/C=US,ST=CA\""));
+        assertThat(result).containsExactly("Hash=abc;Subject=\"/C=US,ST=CA\"");
+    }
+
+    @Test
+    public void commaOutsideQuotedFieldSplitsEntries() {
+        List<String> result = XfccHeaderParser.splitHeaderValues(
+            Arrays.asList("Hash=abc;Subject=\"/C=US,ST=CA\",Hash=def;Subject=\"/C=DE\""));
+        assertThat(result).containsExactly("Hash=abc;Subject=\"/C=US,ST=CA\"", "Hash=def;Subject=\"/C=DE\"");
+    }
+
 }
