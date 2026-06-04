@@ -34,6 +34,18 @@ An entry is detected as XFCC format when it structurally begins with a short (â‰
 
 If an entry passes the structural check but contains none of the recognised cert-related fields (e.g. only unknown future fields), it is treated as a raw certificate value; parsing will fail and a warning is logged. This preserves the same external behaviour as the raw-cert fallback path.
 
+### Request attributes set from XFCC fields
+
+When the header is in XFCC format, the filter sets the following request attributes (first entry wins for multi-entry headers):
+
+| Attribute | XFCC field | Value |
+|-----------|------------|-------|
+| `org.cloudfoundry.router.xfcc.hash` | `Hash=` | SHA-256 fingerprint of the client certificate |
+| `org.cloudfoundry.router.xfcc.subject` | `Subject=` | Subject DN of the client certificate, if present |
+| `org.cloudfoundry.router.xfcc.uri` | `URI=` | URI SAN (e.g. SPIFFE ID) of the client certificate, if present |
+
+These attributes are set regardless of whether a `Cert=` field is present, so applications can identify the caller even when only a `Hash=` is forwarded by the router.
+
 Unknown fields (e.g. from a future XFCC specification revision) are silently skipped and logged at `FINE` level. Known fields introduced after this library was built will be recognised once the library is updated.
 
 **Specifications:**

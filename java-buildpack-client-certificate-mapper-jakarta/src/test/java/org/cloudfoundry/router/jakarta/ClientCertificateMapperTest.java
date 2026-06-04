@@ -252,4 +252,54 @@ public final class ClientCertificateMapperTest {
         assertThat((X509Certificate[]) this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).hasSize(2);
     }
 
+    @Test
+    public void xfccHashAttributeSetWhenHashOnly() throws IOException, ServletException {
+        this.request.addHeader(ClientCertificateMapper.HEADER, "Hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
+
+        this.mapper.doFilter(this.request, this.response, this.filterChain);
+
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE))
+            .isEqualTo("078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE)).isNull();
+    }
+
+    @Test
+    public void xfccHashAndSubjectAttributesSet() throws IOException, ServletException {
+        this.request.addHeader(ClientCertificateMapper.HEADER,
+            "Hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b;Subject=\"/CN=client\";URI=spiffe://cluster.local/ns/default/sa/myapp");
+
+        this.mapper.doFilter(this.request, this.response, this.filterChain);
+
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE))
+            .isEqualTo("078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE))
+            .isEqualTo("/CN=client");
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_URI_ATTRIBUTE))
+            .isEqualTo("spiffe://cluster.local/ns/default/sa/myapp");
+    }
+
+    @Test
+    public void rawCertHasNoXfccAttributes() throws IOException, ServletException {
+        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
+
+        this.mapper.doFilter(this.request, this.response, this.filterChain);
+
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE)).isNull();
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE)).isNull();
+    }
+
+    @Test
+    public void xfccMultipleEntriesFirstHashWins() throws IOException, ServletException {
+        this.request.addHeader(ClientCertificateMapper.HEADER,
+            "Hash=aaaa000000000000000000000000000000000000000000000000000000000000;Subject=\"/CN=first\"," +
+            "Hash=bbbb000000000000000000000000000000000000000000000000000000000000;Subject=\"/CN=second\"");
+
+        this.mapper.doFilter(this.request, this.response, this.filterChain);
+
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE))
+            .isEqualTo("aaaa000000000000000000000000000000000000000000000000000000000000");
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE))
+            .isEqualTo("/CN=first");
+    }
+
 }

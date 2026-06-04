@@ -50,6 +50,15 @@ final class ClientCertificateMapper implements Filter {
 
     static final String HEADER = "X-Forwarded-Client-Cert";
 
+    /** Request attribute set to the SHA-256 hash from the XFCC {@code Hash=} field, when present. */
+    public static final String XFCC_HASH_ATTRIBUTE = "org.cloudfoundry.router.xfcc.hash";
+
+    /** Request attribute set to the subject DN from the XFCC {@code Subject=} field, when present. */
+    public static final String XFCC_SUBJECT_ATTRIBUTE = "org.cloudfoundry.router.xfcc.subject";
+
+    /** Request attribute set to the URI SAN from the XFCC {@code URI=} field, when present (e.g. a SPIFFE ID). */
+    public static final String XFCC_URI_ATTRIBUTE = "org.cloudfoundry.router.xfcc.uri";
+
     private final Logger logger = Logger.getLogger(this.getClass().getName());
 
     private final CertificateFactory certificateFactory;
@@ -103,8 +112,7 @@ final class ClientCertificateMapper implements Filter {
         }
     }
 
-    private X509Certificate parseCertificate(String rawValue) throws CertificateException, IOException {
-        XfccEntry xfcc = new XfccEntry(rawValue);
+    private X509Certificate parseCertificate(String rawValue, XfccEntry xfcc) throws CertificateException, IOException {
         if (xfcc.resemblesXfcc()) {
             if (this.logger.isLoggable(java.util.logging.Level.FINE)) {
                 this.logger.fine("XFCC entry received with fields: " + xfcc.fieldNames());
@@ -128,13 +136,30 @@ final class ClientCertificateMapper implements Filter {
         List<X509Certificate> certificates = new ArrayList<>();
 
         for (String rawValue : getRawCertificates(request)) {
-            X509Certificate cert = parseCertificate(rawValue);
+            XfccEntry xfcc = new XfccEntry(rawValue);
+            setXfccAttributes(request, xfcc);
+            X509Certificate cert = parseCertificate(rawValue, xfcc);
             if (cert != null) {
                 certificates.add(cert);
             }
         }
 
         return certificates;
+    }
+
+    private void setXfccAttributes(HttpServletRequest request, XfccEntry xfcc) {
+        if (!xfcc.resemblesXfcc()) {
+            return;
+        }
+        if (request.getAttribute(XFCC_HASH_ATTRIBUTE) == null && xfcc.hasField(XfccField.HASH)) {
+            request.setAttribute(XFCC_HASH_ATTRIBUTE, xfcc.get(XfccField.HASH));
+        }
+        if (request.getAttribute(XFCC_SUBJECT_ATTRIBUTE) == null && xfcc.hasField(XfccField.SUBJECT)) {
+            request.setAttribute(XFCC_SUBJECT_ATTRIBUTE, xfcc.get(XfccField.SUBJECT));
+        }
+        if (request.getAttribute(XFCC_URI_ATTRIBUTE) == null && xfcc.hasField(XfccField.URI)) {
+            request.setAttribute(XFCC_URI_ATTRIBUTE, xfcc.get(XfccField.URI));
+        }
     }
 
     private List<String> getRawCertificates(HttpServletRequest request) {
