@@ -98,8 +98,6 @@ final class ClientCertificateMapper implements Filter {
     /**
      * Extracts a field value from an XFCC entry. Keys are matched case-insensitively.
      * Quoted values (e.g. Subject="/C=US;L=SF") are returned without the surrounding quotes.
-     * Extracts a field value from an XFCC entry. Keys are matched case-insensitively.
-     * Quoted values (e.g. Subject="/C=US;L=SF") are returned without the surrounding quotes.
      * Semicolons inside double quotes are not treated as field separators.
      */
     private String extractFieldFromXfcc(String xfccEntry, String fieldPrefix) {
