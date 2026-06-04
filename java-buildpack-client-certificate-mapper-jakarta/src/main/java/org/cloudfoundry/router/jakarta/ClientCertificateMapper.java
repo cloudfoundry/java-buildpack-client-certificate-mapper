@@ -36,6 +36,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
+import org.cloudfoundry.router.XfccEntry;
 import org.cloudfoundry.router.XfccField;
 import org.cloudfoundry.router.XfccHeaderParser;
 
@@ -103,17 +104,18 @@ final class ClientCertificateMapper implements Filter {
     }
 
     private X509Certificate parseCertificate(String rawValue) throws CertificateException, IOException {
-        if (XfccHeaderParser.isXfccFormat(rawValue)) {
+        XfccEntry xfcc = new XfccEntry(rawValue);
+        if (xfcc.resemblesXfcc()) {
             if (this.logger.isLoggable(java.util.logging.Level.FINE)) {
-                this.logger.fine("XFCC entry received with fields: " + XfccHeaderParser.xfccFieldNames(rawValue));
+                this.logger.fine("XFCC entry received with fields: " + xfcc.fieldNames());
             }
-            String hash = XfccHeaderParser.extractFieldFromXfcc(rawValue, XfccField.HASH);
+            String hash = xfcc.get(XfccField.HASH);
             if (hash != null && !XfccHeaderParser.isValidSha256Hex(hash)) {
                 this.logger.warning("X-Forwarded-Client-Cert Hash= value does not look like a SHA-256 hex digest");
             }
-            String certData = XfccHeaderParser.extractFieldFromXfcc(rawValue, XfccField.CERT);
+            String certData = xfcc.get(XfccField.CERT);
             if (certData == null) {
-                if (XfccHeaderParser.extractFieldFromXfcc(rawValue, XfccField.CHAIN) != null) {
+                if (xfcc.get(XfccField.CHAIN) != null) {
                     this.logger.warning("X-Forwarded-Client-Cert contains Chain= but no Cert= field; Chain= is not supported and the certificate will not be mapped.");
                 }
                 return null;
