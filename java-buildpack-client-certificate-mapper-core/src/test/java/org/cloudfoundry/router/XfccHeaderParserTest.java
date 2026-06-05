@@ -26,6 +26,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class XfccHeaderParserTest {
 
     @Test
+    public void validateShaWithNull() {
+        assertThat(XfccHeaderParser.isValidSha256Hex(null)).isFalse();
+    }
+
+    @Test
     public void splitSingleValue() {
         List<String> result = XfccHeaderParser.splitHeaderValues(
             Arrays.asList("By=spiffe://test;Cert=abc"));

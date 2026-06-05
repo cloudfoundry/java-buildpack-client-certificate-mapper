@@ -78,6 +78,10 @@ public final class XfccEntry {
      * Note: JSON format (e.g. {@code {"hash":"..."}}) is not supported.
      */
     private static boolean isXfccFormat(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return false;
+        }
+
         int limit = Math.min(raw.length(), MAX_KEY_LENGTH + 1);
         for (int i = 0; i < limit; i++) {
             char c = raw.charAt(i);
@@ -88,6 +92,7 @@ public final class XfccEntry {
                 return false;
             }
         }
+
         return false;
     }
 
@@ -151,6 +156,22 @@ public final class XfccEntry {
             return len;
         }
         int valueStart = eq + 1;
+        Integer i = findStartOfNextFieldAfterQuotedValue(raw, len, valueStart);
+        if (i != null) return i;
+        int semi = raw.indexOf(';', valueStart);
+        return semi < 0 ? len : semi + 1;
+    }
+
+    /**
+     * If the value at {@code valueStart} is quoted, returns the index where parsing should
+     * continue for the next field; otherwise returns {@code null}.
+     *
+     * <p>For quoted values, this method scans until the closing quote while honoring escaped
+     * characters (e.g. {@code \"}). If the closing quote is followed by {@code ;}, the
+     * returned index is just after that separator; otherwise it is the character immediately
+     * after the closing quote. Malformed input (unclosed quote) returns {@code len}.
+     */
+    private static Integer findStartOfNextFieldAfterQuotedValue(String raw, int len, int valueStart) {
         if (valueStart < len && raw.charAt(valueStart) == '"') {
             int i = valueStart + 1;
             while (i < len) {
@@ -163,7 +184,6 @@ public final class XfccEntry {
             }
             return len;
         }
-        int semi = raw.indexOf(';', valueStart);
-        return semi < 0 ? len : semi + 1;
+        return null;
     }
 }

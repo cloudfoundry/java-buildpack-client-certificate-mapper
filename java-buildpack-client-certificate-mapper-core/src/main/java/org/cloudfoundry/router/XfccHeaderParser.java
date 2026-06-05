@@ -29,7 +29,7 @@ public final class XfccHeaderParser {
     }
 
     public static boolean isValidSha256Hex(String value) {
-        return SHA256_HEX.matcher(value).matches();
+        return value != null && SHA256_HEX.matcher(value).matches();
     }
 
     /**

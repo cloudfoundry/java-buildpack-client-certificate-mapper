@@ -23,6 +23,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class XfccEntryTest {
 
     @Test
+    public void doesNotResembleXfccWithNull() {
+        assertThat(new XfccEntry(null).resemblesXfcc()).isFalse();
+    }
+
+    @Test
     public void resemblesXfccForEntryStartingWithKnownField() {
         assertThat(new XfccEntry("Hash=abc123;Cert=xyz").resemblesXfcc()).isTrue();
     }
