@@ -289,6 +289,29 @@ public final class ClientCertificateMapperTest {
     }
 
     @Test
+    public void xfccHashAndSubjectWithCfStyleOusNoException() throws IOException, ServletException {
+        // CF router XFCC: hash-only (no Cert=), subject with UUID-based OUs and commas inside quotes
+        this.request.addHeader(ClientCertificateMapper.HEADER,
+            "Hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b;" +
+            "Subject=\"CN=12345678-1234-1234-1234-123456789012," +
+            "OU=app:aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb," +
+            "OU=space:cccccccc-4444-5555-6666-dddddddddddd," +
+            "OU=organization:eeeeeeee-7777-8888-9999-ffffffffffff\"");
+
+        this.mapper.doFilter(this.request, this.response, this.filterChain);
+
+        assertThat(this.filterChain.getRequest()).isNotNull();
+        assertThat(this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE))
+            .isEqualTo("078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
+        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE))
+            .isEqualTo("CN=12345678-1234-1234-1234-123456789012," +
+                "OU=app:aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb," +
+                "OU=space:cccccccc-4444-5555-6666-dddddddddddd," +
+                "OU=organization:eeeeeeee-7777-8888-9999-ffffffffffff");
+    }
+
+    @Test
     public void xfccMultipleEntriesFirstHashWins() throws IOException, ServletException {
         this.request.addHeader(ClientCertificateMapper.HEADER,
             "Hash=aaaa000000000000000000000000000000000000000000000000000000000000;Subject=\"/CN=first\"," +
