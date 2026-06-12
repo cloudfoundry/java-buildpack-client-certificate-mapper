@@ -27,8 +27,10 @@ public enum XfccField {
     SUBJECT("Subject=");
 
     public final String key;
+    public final int keyLength;
 
     XfccField(String key) {
         this.key = key;
+        this.keyLength = key.length();
     }
 }

@@ -34,6 +34,8 @@ public final class XfccEntry {
 
     private static final boolean IGNORE_CASE = true;
 
+    private static final XfccField[] FIELDS = XfccField.values();
+
     private static final Logger LOGGER = Logger.getLogger(XfccEntry.class.getName());
 
     private final boolean xfcc;
@@ -105,7 +107,7 @@ public final class XfccEntry {
         while (pos < len) {
             XfccField field = matchField(raw, pos);
             if (field != null) {
-                result.put(field, readValue(raw, pos + field.key.length(), len));
+                result.put(field, readValue(raw, pos + field.keyLength, len));
             } else if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.fine("X-Forwarded-Client-Cert contains unknown field at position " + pos);
             }
@@ -115,8 +117,8 @@ public final class XfccEntry {
     }
 
     private static XfccField matchField(String raw, int pos) {
-        for (XfccField field : XfccField.values()) {
-            if (raw.regionMatches(IGNORE_CASE, pos, field.key, 0, field.key.length())) {
+        for (XfccField field : FIELDS) {
+            if (raw.regionMatches(IGNORE_CASE, pos, field.key, 0, field.keyLength)) {
                 return field;
             }
         }

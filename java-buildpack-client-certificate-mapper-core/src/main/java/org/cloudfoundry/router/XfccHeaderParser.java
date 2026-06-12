@@ -32,6 +32,11 @@ public final class XfccHeaderParser {
     private static final String DN_OU_SPACE_PREFIX = "OU=space:";
     private static final String DN_OU_ORG_PREFIX = "OU=organization:";
 
+    private static final int DN_CN_PREFIX_LEN = DN_CN_PREFIX.length();
+    private static final int DN_OU_APP_PREFIX_LEN = DN_OU_APP_PREFIX.length();
+    private static final int DN_OU_SPACE_PREFIX_LEN = DN_OU_SPACE_PREFIX.length();
+    private static final int DN_OU_ORG_PREFIX_LEN = DN_OU_ORG_PREFIX.length();
+
     private XfccHeaderParser() {
     }
 
@@ -56,22 +61,22 @@ public final class XfccHeaderParser {
         for (String part : subject.split(",")) {
             String rdn = part.trim();
             String value;
-            if ((value = parseGuid(rdn, DN_CN_PREFIX)) != null) {
+            if ((value = parseGuid(rdn, DN_CN_PREFIX, DN_CN_PREFIX_LEN)) != null) {
                 instanceGuid = value;
-            } else if ((value = parseGuid(rdn, DN_OU_APP_PREFIX)) != null) {
+            } else if ((value = parseGuid(rdn, DN_OU_APP_PREFIX, DN_OU_APP_PREFIX_LEN)) != null) {
                 appGuid = value;
-            } else if ((value = parseGuid(rdn, DN_OU_SPACE_PREFIX)) != null) {
+            } else if ((value = parseGuid(rdn, DN_OU_SPACE_PREFIX, DN_OU_SPACE_PREFIX_LEN)) != null) {
                 spaceGuid = value;
-            } else if ((value = parseGuid(rdn, DN_OU_ORG_PREFIX)) != null) {
+            } else if ((value = parseGuid(rdn, DN_OU_ORG_PREFIX, DN_OU_ORG_PREFIX_LEN)) != null) {
                 orgGuid = value;
             }
         }
         return new CfSubjectDn(instanceGuid, appGuid, spaceGuid, orgGuid);
     }
 
-    private static String parseGuid(String rdn, String prefix) {
-        if (rdn.regionMatches(IGNORE_CASE, 0, prefix, 0, prefix.length())) {
-            return rdn.substring(prefix.length());
+    private static String parseGuid(String rdn, String prefix, int prefixLen) {
+        if (rdn.regionMatches(IGNORE_CASE, 0, prefix, 0, prefixLen)) {
+            return rdn.substring(prefixLen);
         }
         return null;
     }
