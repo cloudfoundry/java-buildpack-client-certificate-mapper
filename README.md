@@ -5,7 +5,7 @@
 | CI | [![CI](https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/actions/workflows/ci.yml/badge.svg)](https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/actions/workflows/ci.yml) |
 | Release | [![Release](https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/actions/workflows/release.yml/badge.svg)](https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/actions/workflows/release.yml) |
 
-The `java-buildpack-client-certificate-mapper` is a Servlet filter that maps the `X-Forwarded-Client-Cert` header to the `javax.servlet.request.X509Certificate` (javax) or `jakarta.servlet.request.X509Certificate` (jakarta) Servlet attribute.
+The `java-buildpack-client-certificate-mapper` is a Servlet filter that maps the [`X-Forwarded-Client-Cert`][xfcc] header to the `javax.servlet.request.X509Certificate` (javax) or `jakarta.servlet.request.X509Certificate` (jakarta) Servlet attribute. Both raw PEM and [Envoy XFCC format][xfcc] are supported.
 
 ## Download
 
@@ -22,6 +22,50 @@ The project requires Java 8. To build and test from source:
 $ ./mvnw clean package
 ```
 
+## XFCC Header Format
+
+The filter supports both the raw PEM certificate format and the [Envoy XFCC format][xfcc]. In XFCC format, the header contains key-value fields such as `Hash=`, `Cert=`, and `Subject=`. Field names are matched case-insensitively. Multiple header values and the [RFC 9110][rfc9110] comma-delimited equivalent are both supported.
+
+The `Hash=` field (a SHA-256 fingerprint of the leaf certificate, set by the router) is recognised for format detection and optionally sanity-checked, but it cannot be mapped to an `X509Certificate` without a `Cert=` field.
+
+### XFCC detection and fallback behaviour
+
+An entry is detected as XFCC format when it structurally begins with a short (≤ 20 characters) all-letter key followed by `=`, **and** contains at least one of `Hash=`, `Cert=`, or `Chain=`. JSON format is not supported.
+
+If an entry passes the structural check but contains none of the recognised cert-related fields (e.g. only unknown future fields), it is treated as a raw certificate value; parsing will fail and a warning is logged. This preserves the same external behaviour as the raw-cert fallback path.
+
+### CF Gorouter XFCC fields
+
+CF Gorouter emits only `Hash=` and `Subject=` in the XFCC header. The `Cert=` field is emitted only when the router is configured to forward the full client certificate. `By=` may also be present as the proxy identity, but its value is **not** a Subject Alternative Name (SAN) — CF app identity certs do not carry URI SANs or DNS SANs, so `URI=` and `DNS=` are not emitted and are not recognised by this library.
+
+### Request attributes set from XFCC fields
+
+When the header is in XFCC format, the filter sets the following request attributes (first entry that contains the field wins for multi-entry headers):
+
+| Attribute | Source | Value |
+|-----------|--------|-------|
+| `org.cloudfoundry.router.xfcc.hash` | `Hash=` | SHA-256 fingerprint of the client certificate |
+| `org.cloudfoundry.router.xfcc.subject` | `Subject=` | Full Subject DN of the client certificate |
+| `org.cloudfoundry.router.xfcc.app.guid` | `Subject=` `OU=app:<guid>` | CF app GUID parsed from the Subject DN |
+| `org.cloudfoundry.router.xfcc.space.guid` | `Subject=` `OU=space:<guid>` | CF space GUID parsed from the Subject DN |
+| `org.cloudfoundry.router.xfcc.org.guid` | `Subject=` `OU=organization:<guid>` | CF organization GUID parsed from the Subject DN |
+| `org.cloudfoundry.router.xfcc.instance.guid` | `Subject=` `CN=<guid>` | CF app instance GUID parsed from the Subject DN |
+
+The CF Subject DN format is: `CN=<instance-guid>,OU=app:<app-guid>,OU=space:<space-guid>,OU=organization:<org-guid>`.
+
+These attributes are set regardless of whether a `Cert=` field is present, so applications can identify the caller even when only a `Hash=` and `Subject=` are forwarded by the router.
+
+Unknown fields are silently skipped and logged at `FINE` level.
+
+**Specifications:**
+- [Envoy `x-forwarded-client-cert` header][xfcc] — XFCC field definitions (`Hash=`, `Cert=`, `Chain=`, `Subject=`)
+- [RFC 9110 §5.3][rfc9110] — HTTP header comma-delimited field values
+- [Jakarta Servlet 6.0 specification][servlet-spec] — `jakarta.servlet.request.X509Certificate` attribute
+
+## Debug Logging
+
+The filter uses Java Util Logging (JUL). To enable debug output, set the logger level for `org.cloudfoundry.router` to `FINE`. When enabled, the filter logs the XFCC field names present in each header (e.g. `Hash`, `Cert`, `Subject`). Certificate values are never logged.
+
 ## CI / Workflows
 
 | Workflow | Trigger | Description |
@@ -31,12 +75,10 @@ $ ./mvnw clean package
 
 All workflows can be triggered manually from **Actions → select workflow → Run workflow** in the GitHub UI.
 
-## Contributing
-[Pull requests][u] and [Issues][e] are welcome.
-
 ## License
 This project is released under version 2.0 of the [Apache License][l].
 
-[e]: https://github.com/cloudfoundry/java-buildpack-client-certificate-mapper/issues
 [l]: https://www.apache.org/licenses/LICENSE-2.0
-[u]: https://help.github.com/articles/using-pull-requests
+[xfcc]: https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-client-cert
+[rfc9110]: https://www.rfc-editor.org/rfc/rfc9110#section-5.3
+[servlet-spec]: https://jakarta.ee/specifications/servlet/6.0/

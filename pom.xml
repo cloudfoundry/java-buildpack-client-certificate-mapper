@@ -55,6 +55,7 @@
 
     <modules>
         <module>java-buildpack-client-certificate-mapper</module>
+        <module>java-buildpack-client-certificate-mapper-core</module>
         <module>java-buildpack-client-certificate-mapper-jakarta</module>
         <module>java-buildpack-client-certificate-mapper-javax</module>
     </modules>
