@@ -129,6 +129,28 @@ public final class XfccEntryTest {
     }
 
     @Test
+    public void getQuotedFieldAtEndOfStringNoTrailingSemicolon() {
+        XfccEntry entry = new XfccEntry("Hash=abc;Subject=\"CN=foo\"");
+        assertThat(entry.get(XfccField.HASH)).isEqualTo("abc");
+        assertThat(entry.get(XfccField.SUBJECT)).isEqualTo("CN=foo");
+    }
+
+    @Test
+    public void getEscapedQuoteInsideQuotedValue() {
+        XfccEntry entry = new XfccEntry("Hash=abc;Subject=\"foo\\\"bar\"");
+        assertThat(entry.get(XfccField.SUBJECT)).isEqualTo("foo\"bar");
+    }
+
+    @Test
+    public void unknownFieldWithQuotedValueContainingSemicolonIsSkipped() {
+        // skipUnknownField must not treat ';' inside quotes as a field separator
+        XfccEntry entry = new XfccEntry("FutureField=\"val;with;semis\";Hash=abc123;Cert=xyz");
+        assertThat(entry.resemblesXfcc()).isTrue();
+        assertThat(entry.get(XfccField.HASH)).isEqualTo("abc123");
+        assertThat(entry.get(XfccField.CERT)).isEqualTo("xyz");
+    }
+
+    @Test
     public void spaceAfterSemicolonDropsField() {
         // Envoy/Gorouter spec does not emit spaces after ';', but document the behaviour
         XfccEntry entry = new XfccEntry("Hash=abc; Cert=xyz");

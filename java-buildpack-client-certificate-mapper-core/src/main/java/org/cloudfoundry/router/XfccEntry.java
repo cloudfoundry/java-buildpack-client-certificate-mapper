@@ -64,7 +64,7 @@ public final class XfccEntry {
     /** Returns a comma-separated list of known field names present in this entry, in declaration order. */
     public String fieldNames() {
         StringBuilder names = new StringBuilder();
-        for (XfccField field : XfccField.values()) {
+        for (XfccField field : FIELDS) {
             if (fields.containsKey(field)) {
                 if (names.length() > 0) {
                     names.append(", ");
@@ -107,11 +107,13 @@ public final class XfccEntry {
         while (pos < len) {
             XfccField field = matchField(raw, pos);
             if (field != null) {
-                result.put(field, readValue(raw, pos + field.keyLength, len));
-            } else if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.fine("X-Forwarded-Client-Cert contains unknown field at position " + pos);
+                pos = readValueInto(raw, pos + field.keyLength, len, field, result);
+            } else {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.fine("X-Forwarded-Client-Cert contains unknown field at position " + pos);
+                }
+                pos = skipUnknownField(raw, pos, len);
             }
-            pos = skipToNextField(raw, pos, len);
         }
         return result;
     }
@@ -126,11 +128,12 @@ public final class XfccEntry {
     }
 
     /**
-     * Reads a field value starting at {@code start}: strips surrounding quotes and
-     * unescapes {@code \"} if quoted, otherwise reads up to the next {@code ;}.
+     * Reads a field value into {@code result} and returns the start position of the next field.
+     * Strips surrounding quotes and unescapes {@code \"} if quoted (only when {@code \"} is present),
+     * otherwise reads up to the next {@code ;}.
      * Malformed input (unclosed quote, trailing backslash) is handled gracefully.
      */
-    private static String readValue(String raw, int start, int len) {
+    private static int readValueInto(String raw, int start, int len, XfccField field, Map<XfccField, String> result) {
         if (start < len && raw.charAt(start) == '"') {
             int end = start + 1;
             while (end < len) {
@@ -143,41 +146,31 @@ public final class XfccEntry {
                     end++;
                 }
             }
-            return raw.substring(start + 1, Math.min(end, len)).replace("\\\"", "\"");
+            String content = raw.substring(start + 1, Math.min(end, len));
+            // avoid String allocation when no escaped quotes (common case: CF Gorouter GUIDs)
+            result.put(field, content.indexOf("\\\"") >= 0 ? content.replace("\\\"", "\"") : content);
+            int afterQuote = Math.min(end + 1, len);
+            return (afterQuote < len && raw.charAt(afterQuote) == ';') ? afterQuote + 1 : afterQuote;
         }
         int semi = raw.indexOf(';', start);
-        return raw.substring(start, semi < 0 ? len : semi);
+        if (semi < 0) {
+            result.put(field, raw.substring(start));
+            return len;
+        }
+        result.put(field, raw.substring(start, semi));
+        return semi + 1;
     }
 
     /**
-     * Returns the start position of the next field after the field beginning at {@code pos},
-     * correctly skipping over quoted values that may contain {@code ;}.
-     * Malformed input (unclosed quote, trailing backslash) is handled gracefully.
+     * Skips an unknown field (key=value) and returns the start position of the next field.
+     * Correctly handles quoted values containing {@code ;}. Malformed input handled gracefully.
      */
-    private static int skipToNextField(String raw, int pos, int len) {
+    private static int skipUnknownField(String raw, int pos, int len) {
         int eq = raw.indexOf('=', pos);
         if (eq < 0) {
             return len;
         }
         int valueStart = eq + 1;
-        Integer i = findStartOfNextFieldAfterQuotedValue(raw, len, valueStart);
-        if (i != null) {
-            return i;
-        }
-        int semi = raw.indexOf(';', valueStart);
-        return semi < 0 ? len : semi + 1;
-    }
-
-    /**
-     * If the value at {@code valueStart} is quoted, returns the index where parsing should
-     * continue for the next field; otherwise returns {@code null}.
-     *
-     * <p>For quoted values, this method scans until the closing quote while honoring escaped
-     * characters (e.g. {@code \"}). If the closing quote is followed by {@code ;}, the
-     * returned index is just after that separator; otherwise it is the character immediately
-     * after the closing quote. Malformed input (unclosed quote) returns {@code len}.
-     */
-    private static Integer findStartOfNextFieldAfterQuotedValue(String raw, int len, int valueStart) {
         if (valueStart < len && raw.charAt(valueStart) == '"') {
             int i = valueStart + 1;
             while (i < len) {
@@ -190,6 +183,7 @@ public final class XfccEntry {
             }
             return len;
         }
-        return null;
+        int semi = raw.indexOf(';', valueStart);
+        return semi < 0 ? len : semi + 1;
     }
 }
