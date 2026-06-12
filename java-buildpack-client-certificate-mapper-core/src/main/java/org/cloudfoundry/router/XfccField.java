@@ -21,13 +21,10 @@ package org.cloudfoundry.router;
  * Each constant's {@code key} holds the exact prefix used in the header value (e.g. {@code "Hash="}).
  */
 public enum XfccField {
-    BY("By="),
     HASH("Hash="),
     CERT("Cert="),
     CHAIN("Chain="),
-    SUBJECT("Subject="),
-    URI("URI="),
-    DNS("DNS=");
+    SUBJECT("Subject=");
 
     public final String key;
 

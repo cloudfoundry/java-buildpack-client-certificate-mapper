@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
+import org.cloudfoundry.router.XfccAttributes;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class ClientCertificateMapperTest {
@@ -258,24 +260,22 @@ public final class ClientCertificateMapperTest {
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE))
+        assertThat(this.request.getAttribute(XfccAttributes.HASH))
             .isEqualTo("078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE)).isNull();
+        assertThat(this.request.getAttribute(XfccAttributes.SUBJECT)).isNull();
     }
 
     @Test
     public void xfccHashAndSubjectAttributesSet() throws IOException, ServletException {
         this.request.addHeader(ClientCertificateMapper.HEADER,
-            "Hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b;Subject=\"/CN=client\";URI=spiffe://cluster.local/ns/default/sa/myapp");
+            "Hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b;Subject=\"/CN=client\"");
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE))
+        assertThat(this.request.getAttribute(XfccAttributes.HASH))
             .isEqualTo("078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE))
+        assertThat(this.request.getAttribute(XfccAttributes.SUBJECT))
             .isEqualTo("/CN=client");
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_URI_ATTRIBUTE))
-            .isEqualTo("spiffe://cluster.local/ns/default/sa/myapp");
     }
 
     @Test
@@ -284,8 +284,8 @@ public final class ClientCertificateMapperTest {
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE)).isNull();
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE)).isNull();
+        assertThat(this.request.getAttribute(XfccAttributes.HASH)).isNull();
+        assertThat(this.request.getAttribute(XfccAttributes.SUBJECT)).isNull();
     }
 
     @Test
@@ -302,13 +302,21 @@ public final class ClientCertificateMapperTest {
 
         assertThat(this.filterChain.getRequest()).isNotNull();
         assertThat(this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE))
+        assertThat(this.request.getAttribute(XfccAttributes.HASH))
             .isEqualTo("078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE))
+        assertThat(this.request.getAttribute(XfccAttributes.SUBJECT))
             .isEqualTo("CN=12345678-1234-1234-1234-123456789012," +
                 "OU=app:aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb," +
                 "OU=space:cccccccc-4444-5555-6666-dddddddddddd," +
                 "OU=organization:eeeeeeee-7777-8888-9999-ffffffffffff");
+        assertThat(this.request.getAttribute(XfccAttributes.APP_GUID))
+            .isEqualTo("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb");
+        assertThat(this.request.getAttribute(XfccAttributes.SPACE_GUID))
+            .isEqualTo("cccccccc-4444-5555-6666-dddddddddddd");
+        assertThat(this.request.getAttribute(XfccAttributes.ORG_GUID))
+            .isEqualTo("eeeeeeee-7777-8888-9999-ffffffffffff");
+        assertThat(this.request.getAttribute(XfccAttributes.INSTANCE_GUID))
+            .isEqualTo("12345678-1234-1234-1234-123456789012");
     }
 
     @Test
@@ -319,9 +327,9 @@ public final class ClientCertificateMapperTest {
 
         this.mapper.doFilter(this.request, this.response, this.filterChain);
 
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_HASH_ATTRIBUTE))
+        assertThat(this.request.getAttribute(XfccAttributes.HASH))
             .isEqualTo("aaaa000000000000000000000000000000000000000000000000000000000000");
-        assertThat(this.request.getAttribute(ClientCertificateMapper.XFCC_SUBJECT_ATTRIBUTE))
+        assertThat(this.request.getAttribute(XfccAttributes.SUBJECT))
             .isEqualTo("/CN=first");
     }
 

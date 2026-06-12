@@ -36,6 +36,8 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
+import org.cloudfoundry.router.CfSubjectDn;
+import org.cloudfoundry.router.XfccAttributes;
 import org.cloudfoundry.router.XfccEntry;
 import org.cloudfoundry.router.XfccField;
 import org.cloudfoundry.router.XfccHeaderParser;
@@ -49,15 +51,6 @@ final class ClientCertificateMapper implements Filter {
     static final String ATTRIBUTE = "jakarta.servlet.request.X509Certificate";
 
     static final String HEADER = "X-Forwarded-Client-Cert";
-
-    /** Request attribute set to the SHA-256 hash from the XFCC {@code Hash=} field, when present. */
-    public static final String XFCC_HASH_ATTRIBUTE = "org.cloudfoundry.router.xfcc.hash";
-
-    /** Request attribute set to the subject DN from the XFCC {@code Subject=} field, when present. */
-    public static final String XFCC_SUBJECT_ATTRIBUTE = "org.cloudfoundry.router.xfcc.subject";
-
-    /** Request attribute set to the URI SAN from the XFCC {@code URI=} field, when present (e.g. a SPIFFE ID). */
-    public static final String XFCC_URI_ATTRIBUTE = "org.cloudfoundry.router.xfcc.uri";
 
     private final Logger logger = Logger.getLogger(this.getClass().getName());
 
@@ -151,14 +144,32 @@ final class ClientCertificateMapper implements Filter {
         if (!xfcc.resemblesXfcc()) {
             return;
         }
-        if (request.getAttribute(XFCC_HASH_ATTRIBUTE) == null && xfcc.hasField(XfccField.HASH)) {
-            request.setAttribute(XFCC_HASH_ATTRIBUTE, xfcc.get(XfccField.HASH));
+        if (request.getAttribute(XfccAttributes.HASH) == null && xfcc.hasField(XfccField.HASH)) {
+            request.setAttribute(XfccAttributes.HASH, xfcc.get(XfccField.HASH));
         }
-        if (request.getAttribute(XFCC_SUBJECT_ATTRIBUTE) == null && xfcc.hasField(XfccField.SUBJECT)) {
-            request.setAttribute(XFCC_SUBJECT_ATTRIBUTE, xfcc.get(XfccField.SUBJECT));
+        if (request.getAttribute(XfccAttributes.SUBJECT) == null && xfcc.hasField(XfccField.SUBJECT)) {
+            String subject = xfcc.get(XfccField.SUBJECT);
+            request.setAttribute(XfccAttributes.SUBJECT, subject);
+            setCfSubjectAttributes(request, subject);
         }
-        if (request.getAttribute(XFCC_URI_ATTRIBUTE) == null && xfcc.hasField(XfccField.URI)) {
-            request.setAttribute(XFCC_URI_ATTRIBUTE, xfcc.get(XfccField.URI));
+    }
+
+    private void setCfSubjectAttributes(HttpServletRequest request, String subject) {
+        CfSubjectDn dn = XfccHeaderParser.parseCfSubjectDn(subject);
+        if (dn == null) {
+            return;
+        }
+        if (request.getAttribute(XfccAttributes.APP_GUID) == null && dn.appGuid != null) {
+            request.setAttribute(XfccAttributes.APP_GUID, dn.appGuid);
+        }
+        if (request.getAttribute(XfccAttributes.SPACE_GUID) == null && dn.spaceGuid != null) {
+            request.setAttribute(XfccAttributes.SPACE_GUID, dn.spaceGuid);
+        }
+        if (request.getAttribute(XfccAttributes.ORG_GUID) == null && dn.orgGuid != null) {
+            request.setAttribute(XfccAttributes.ORG_GUID, dn.orgGuid);
+        }
+        if (request.getAttribute(XfccAttributes.INSTANCE_GUID) == null && dn.instanceGuid != null) {
+            request.setAttribute(XfccAttributes.INSTANCE_GUID, dn.instanceGuid);
         }
     }
 

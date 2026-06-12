@@ -32,6 +32,8 @@ public final class XfccEntry {
     /** Maximum expected length of an XFCC field key. Used to distinguish XFCC from raw base64 certs. */
     private static final int MAX_KEY_LENGTH = 20;
 
+    private static final boolean IGNORE_CASE = true;
+
     private static final Logger LOGGER = Logger.getLogger(XfccEntry.class.getName());
 
     private final boolean xfcc;
@@ -114,7 +116,7 @@ public final class XfccEntry {
 
     private static XfccField matchField(String raw, int pos) {
         for (XfccField field : XfccField.values()) {
-            if (raw.regionMatches(true, pos, field.key, 0, field.key.length())) {
+            if (raw.regionMatches(IGNORE_CASE, pos, field.key, 0, field.key.length())) {
                 return field;
             }
         }
@@ -157,7 +159,9 @@ public final class XfccEntry {
         }
         int valueStart = eq + 1;
         Integer i = findStartOfNextFieldAfterQuotedValue(raw, len, valueStart);
-        if (i != null) return i;
+        if (i != null) {
+            return i;
+        }
         int semi = raw.indexOf(';', valueStart);
         return semi < 0 ? len : semi + 1;
     }

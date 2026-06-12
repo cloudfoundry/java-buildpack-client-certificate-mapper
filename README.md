@@ -34,22 +34,31 @@ An entry is detected as XFCC format when it structurally begins with a short (�
 
 If an entry passes the structural check but contains none of the recognised cert-related fields (e.g. only unknown future fields), it is treated as a raw certificate value; parsing will fail and a warning is logged. This preserves the same external behaviour as the raw-cert fallback path.
 
+### CF Gorouter XFCC fields
+
+CF Gorouter emits only `Hash=` and `Subject=` in the XFCC header. The `Cert=` field is emitted only when the router is configured to forward the full client certificate. `By=` may also be present as the proxy identity, but its value is **not** a Subject Alternative Name (SAN) — CF app identity certs do not carry URI SANs or DNS SANs, so `URI=` and `DNS=` are not emitted and are not recognised by this library.
+
 ### Request attributes set from XFCC fields
 
 When the header is in XFCC format, the filter sets the following request attributes (first entry that contains the field wins for multi-entry headers):
 
-| Attribute | XFCC field | Value |
-|-----------|------------|-------|
+| Attribute | Source | Value |
+|-----------|--------|-------|
 | `org.cloudfoundry.router.xfcc.hash` | `Hash=` | SHA-256 fingerprint of the client certificate |
-| `org.cloudfoundry.router.xfcc.subject` | `Subject=` | Subject DN of the client certificate, if present |
-| `org.cloudfoundry.router.xfcc.uri` | `URI=` | URI SAN (e.g. SPIFFE ID) of the client certificate, if present |
+| `org.cloudfoundry.router.xfcc.subject` | `Subject=` | Full Subject DN of the client certificate |
+| `org.cloudfoundry.router.xfcc.app.guid` | `Subject=` `OU=app:<guid>` | CF app GUID parsed from the Subject DN |
+| `org.cloudfoundry.router.xfcc.space.guid` | `Subject=` `OU=space:<guid>` | CF space GUID parsed from the Subject DN |
+| `org.cloudfoundry.router.xfcc.org.guid` | `Subject=` `OU=organization:<guid>` | CF organization GUID parsed from the Subject DN |
+| `org.cloudfoundry.router.xfcc.instance.guid` | `Subject=` `CN=<guid>` | CF app instance GUID parsed from the Subject DN |
 
-These attributes are set regardless of whether a `Cert=` field is present, so applications can identify the caller even when only a `Hash=` is forwarded by the router.
+The CF Subject DN format is: `CN=<instance-guid>,OU=app:<app-guid>,OU=space:<space-guid>,OU=organization:<org-guid>`.
 
-Unknown fields (e.g. from a future XFCC specification revision) are silently skipped and logged at `FINE` level. Known fields introduced after this library was built will be recognised once the library is updated.
+These attributes are set regardless of whether a `Cert=` field is present, so applications can identify the caller even when only a `Hash=` and `Subject=` are forwarded by the router.
+
+Unknown fields are silently skipped and logged at `FINE` level.
 
 **Specifications:**
-- [Envoy `x-forwarded-client-cert` header][xfcc] — XFCC field definitions (`By=`, `Hash=`, `Cert=`, `Subject=`, `URI=`, `DNS=`)
+- [Envoy `x-forwarded-client-cert` header][xfcc] — XFCC field definitions (`Hash=`, `Cert=`, `Chain=`, `Subject=`)
 - [RFC 9110 §5.3][rfc9110] — HTTP header comma-delimited field values
 - [Jakarta Servlet 6.0 specification][servlet-spec] — `jakarta.servlet.request.X509Certificate` attribute
 

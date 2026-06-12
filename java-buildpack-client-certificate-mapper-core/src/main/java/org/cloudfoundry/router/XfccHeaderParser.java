@@ -25,11 +25,55 @@ public final class XfccHeaderParser {
 
     private static final Pattern SHA256_HEX = Pattern.compile("[0-9a-fA-F]{64}");
 
+    private static final boolean IGNORE_CASE = true;
+
+    private static final String DN_CN_PREFIX = "CN=";
+    private static final String DN_OU_APP_PREFIX = "OU=app:";
+    private static final String DN_OU_SPACE_PREFIX = "OU=space:";
+    private static final String DN_OU_ORG_PREFIX = "OU=organization:";
+
     private XfccHeaderParser() {
     }
 
     public static boolean isValidSha256Hex(String value) {
         return value != null && SHA256_HEX.matcher(value).matches();
+    }
+
+    /**
+     * Parses CF app identity fields from a Subject DN string in a single pass.
+     * Returns {@code null} if {@code subject} is {@code null}.
+     * Individual fields in the returned object are {@code null} when the corresponding
+     * DN component is absent.
+     */
+    public static CfSubjectDn parseCfSubjectDn(String subject) {
+        if (subject == null) {
+            return null;
+        }
+        String instanceGuid = null;
+        String appGuid = null;
+        String spaceGuid = null;
+        String orgGuid = null;
+        for (String part : subject.split(",")) {
+            String rdn = part.trim();
+            String value;
+            if ((value = parseGuid(rdn, DN_CN_PREFIX)) != null) {
+                instanceGuid = value;
+            } else if ((value = parseGuid(rdn, DN_OU_APP_PREFIX)) != null) {
+                appGuid = value;
+            } else if ((value = parseGuid(rdn, DN_OU_SPACE_PREFIX)) != null) {
+                spaceGuid = value;
+            } else if ((value = parseGuid(rdn, DN_OU_ORG_PREFIX)) != null) {
+                orgGuid = value;
+            }
+        }
+        return new CfSubjectDn(instanceGuid, appGuid, spaceGuid, orgGuid);
+    }
+
+    private static String parseGuid(String rdn, String prefix) {
+        if (rdn.regionMatches(IGNORE_CASE, 0, prefix, 0, prefix.length())) {
+            return rdn.substring(prefix.length());
+        }
+        return null;
     }
 
     /**

@@ -44,10 +44,9 @@ public final class XfccEntryTest {
 
     @Test
     public void getKnownField() {
-        XfccEntry entry = new XfccEntry("By=spiffe://trust/id;Hash=abc123def456;Cert=certdata");
+        XfccEntry entry = new XfccEntry("Hash=abc123def456;Cert=certdata");
         assertThat(entry.get(XfccField.HASH)).isEqualTo("abc123def456");
         assertThat(entry.get(XfccField.CERT)).isEqualTo("certdata");
-        assertThat(entry.get(XfccField.BY)).isEqualTo("spiffe://trust/id");
     }
 
     @Test
@@ -87,8 +86,8 @@ public final class XfccEntryTest {
 
     @Test
     public void fieldNamesListsPresentFields() {
-        XfccEntry entry = new XfccEntry("By=spiffe://x;Hash=abc;Cert=xyz");
-        assertThat(entry.fieldNames()).isEqualTo("By, Hash, Cert");
+        XfccEntry entry = new XfccEntry("Hash=abc;Cert=xyz");
+        assertThat(entry.fieldNames()).isEqualTo("Hash, Cert");
     }
 
     @Test
@@ -127,5 +126,20 @@ public final class XfccEntryTest {
         assertThat(entry.resemblesXfcc()).isTrue();
         assertThat(entry.get(XfccField.HASH)).isEqualTo("abc");
         assertThat(entry.get(XfccField.SUBJECT)).isNotNull();
+    }
+
+    @Test
+    public void spaceAfterSemicolonDropsField() {
+        // Envoy/Gorouter spec does not emit spaces after ';', but document the behaviour
+        XfccEntry entry = new XfccEntry("Hash=abc; Cert=xyz");
+        assertThat(entry.get(XfccField.HASH)).isEqualTo("abc");
+        assertThat(entry.get(XfccField.CERT)).isNull();
+    }
+
+    @Test
+    public void fieldValueHasNoTrailingSpaceBeforeSemicolon() {
+        XfccEntry entry = new XfccEntry("Hash=abc ;Cert=xyz");
+        assertThat(entry.get(XfccField.HASH)).isEqualTo("abc ");
+        assertThat(entry.get(XfccField.CERT)).isEqualTo("xyz");
     }
 }
