@@ -172,6 +172,29 @@ public final class ClientCertificateMapperTest {
         assertThat((X509Certificate[]) this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE)).hasSize(2);
     }
 
+    /** Each entry in a multi-header request is cached independently, keyed by its own digest, so a
+     *  repeat request with the same two (distinct) headers must hit both cache slots and reproduce
+     *  the same objects in the same order — caching must not merge, reorder, or cross-contaminate
+     *  entries. Relies on caching being enabled (the default). */
+    @Test
+    public void multipleHeadersEachCachedIndependently() throws IOException, ServletException {
+        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
+        this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_2);
+        this.mapper.doFilter(this.request, this.response, this.filterChain);
+        X509Certificate[] first = (X509Certificate[]) this.request.getAttribute(ClientCertificateMapper.ATTRIBUTE);
+
+        MockHttpServletRequest request2 = new MockHttpServletRequest();
+        request2.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
+        request2.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_2);
+        this.mapper.doFilter(request2, this.response, new MockFilterChain());
+        X509Certificate[] second = (X509Certificate[]) request2.getAttribute(ClientCertificateMapper.ATTRIBUTE);
+
+        assertThat(second).hasSize(2);
+        assertThat(second[0]).isSameAs(first[0]);
+        assertThat(second[1]).isSameAs(first[1]);
+        assertThat(second[0]).isNotSameAs(second[1]);
+    }
+
     @Test
     public void nginxHeader() throws IOException, ServletException {
 
