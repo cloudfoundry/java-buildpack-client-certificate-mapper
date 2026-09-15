@@ -130,6 +130,24 @@ public final class CertificateCache {
         return value;
     }
 
+    /**
+     * Returns the cached bundle for {@code key} without recording a hit or a miss, or {@code null}
+     * if not present. Intended for callers that need to short-circuit expensive work (such as
+     * parsing the raw header into an {@link XfccEntry}) before they know whether the entry is even
+     * cache-eligible; such a caller records the miss itself once it decides to call
+     * {@link #getOrCompute}, so this method must stay silent to avoid double-counting.
+     */
+    ParsedXfcc peek(String key) {
+        ParsedXfcc value = currentGen.get(key);
+        if (value == null) {
+            value = prevGen.get(key);
+        }
+        if (value != null) {
+            recordHit();
+        }
+        return value;
+    }
+
     /** Stores {@code value} under {@code key}, rotating generations if the current one is full. */
     public void put(String key, ParsedXfcc value) {
         rotateIfFull();
@@ -166,8 +184,14 @@ public final class CertificateCache {
         }
         // Rotate before entering computeIfAbsent — the mapping function must not mutate currentGen.
         rotateIfFull();
+        // computeIfAbsent guarantees the mapping function runs at most once per key, but callers
+        // that lose the race still return through this same call without ever invoking it. Track
+        // whether *this* call was the one that parsed, so racing callers are still counted (as a
+        // hit, since they got the value without parsing) instead of silently missing both counters.
+        boolean[] parsed = {false};
         try {
-            return currentGen.computeIfAbsent(key, k -> {
+            ParsedXfcc result = currentGen.computeIfAbsent(key, k -> {
+                parsed[0] = true;
                 recordMiss();
                 try {
                     return supplier.parse();
@@ -175,6 +199,10 @@ public final class CertificateCache {
                     throw new WrappedCheckedException(e);
                 }
             });
+            if (!parsed[0]) {
+                recordHit();
+            }
+            return result;
         } catch (WrappedCheckedException e) {
             Throwable cause = e.getCause();
             if (cause instanceof CertificateException) {

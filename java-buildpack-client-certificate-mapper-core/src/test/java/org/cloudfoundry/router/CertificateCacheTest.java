@@ -169,6 +169,26 @@ public final class CertificateCacheTest {
     }
 
     @Test
+    public void peekReturnsEntryAndRecordsHitWithoutInvokingSupplier() {
+        CertificateCache cache = new CertificateCache(4);
+        ParsedXfcc entry = fakeEntry();
+        cache.put("key1", entry);
+
+        assertThat(cache.peek("key1")).isSameAs(entry);
+        assertThat(cache.getHitCount()).isEqualTo(1);
+        assertThat(cache.getMissCount()).isZero();
+    }
+
+    @Test
+    public void peekReturnsNullAndRecordsNothingOnMiss() {
+        CertificateCache cache = new CertificateCache(4);
+
+        assertThat(cache.peek("missing")).isNull();
+        assertThat(cache.getHitCount()).isZero();
+        assertThat(cache.getMissCount()).isZero();
+    }
+
+    @Test
     public void getOrComputeReturnsCachedValueOnHit() throws Exception {
         CertificateCache cache = new CertificateCache(4);
         ParsedXfcc entry = fakeEntry();
@@ -232,6 +252,11 @@ public final class CertificateCacheTest {
         for (ParsedXfcc result : results) {
             assertThat(result).isSameAs(sharedEntry);
         }
+        // The single winning thread records a miss; every other thread that raced on the same
+        // key and received the already-computed value without parsing must record a hit, not
+        // be dropped from the counters entirely.
+        assertThat(cache.getMissCount()).isEqualTo(1);
+        assertThat(cache.getHitCount()).isEqualTo(threadCount - 1);
     }
 
     @Test
