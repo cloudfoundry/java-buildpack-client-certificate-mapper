@@ -16,6 +16,7 @@
 
 package org.cloudfoundry.router.javax;
 
+import javax.servlet.AsyncContext;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -137,7 +138,7 @@ final class ClientCertificateMapper implements Filter {
             }
             // Only wrap when the header is actually present — avoids allocation on requests without a cert.
             if (this.stripXfccHeader && ((HttpServletRequest) request).getHeader(HEADER) != null) {
-                request = new XfccStrippingRequestWrapper((HttpServletRequest) request);
+                request = new XfccStrippingRequestWrapper((HttpServletRequest) request, response);
             }
         }
 
@@ -201,8 +202,11 @@ final class ClientCertificateMapper implements Filter {
 
     private static final class XfccStrippingRequestWrapper extends HttpServletRequestWrapper {
 
-        XfccStrippingRequestWrapper(HttpServletRequest request) {
+        private final ServletResponse response;
+
+        XfccStrippingRequestWrapper(HttpServletRequest request, ServletResponse response) {
             super(request);
+            this.response = response;
         }
 
         @Override
@@ -246,6 +250,16 @@ final class ClientCertificateMapper implements Filter {
             List<String> names = Collections.list(orig);
             names.removeIf(name -> HEADER.equalsIgnoreCase(name));
             return Collections.enumeration(names);
+        }
+
+        // The zero-arg ServletRequestWrapper.startAsync() delegates to the wrapped (inner) request's
+        // startAsync(), which registers *that* request with the AsyncContext rather than this wrapper.
+        // Any async dispatch or AsyncContext.getRequest() call downstream would then see the original,
+        // unstripped request and the hidden header would leak back in. Registering "this" explicitly
+        // keeps the stripping wrapper in the async request as well.
+        @Override
+        public AsyncContext startAsync() throws IllegalStateException {
+            return startAsync(this, this.response);
         }
     }
 

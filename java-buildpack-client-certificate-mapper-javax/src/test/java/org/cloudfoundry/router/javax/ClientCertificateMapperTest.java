@@ -433,6 +433,28 @@ public final class ClientCertificateMapperTest {
     }
 
     @Test
+    public void stripXfccHeaderSurvivesStartAsync() throws IOException, ServletException, CertificateException {
+        // startAsync() must re-register this stripping wrapper (not the raw inner request) with the
+        // AsyncContext, otherwise an async redispatch or AsyncContext.getRequest() call downstream
+        // would see the original, unstripped request and the hidden header would leak back in.
+        System.setProperty("org.cloudfoundry.router.certificate.header.hide", "true");
+        try {
+            ClientCertificateMapper mapper = new ClientCertificateMapper();
+            this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
+            this.request.setAsyncSupported(true);
+            MockFilterChain chain = new MockFilterChain();
+            mapper.doFilter(this.request, this.response, chain);
+
+            HttpServletRequest downstream = (HttpServletRequest) chain.getRequest();
+            javax.servlet.AsyncContext asyncContext = downstream.startAsync();
+
+            assertThat(((HttpServletRequest) asyncContext.getRequest()).getHeader(ClientCertificateMapper.HEADER)).isNull();
+        } finally {
+            System.clearProperty("org.cloudfoundry.router.certificate.header.hide");
+        }
+    }
+
+    @Test
     public void stripXfccHeaderDisabledByDefault() throws IOException, ServletException {
         this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
         MockFilterChain chain = new MockFilterChain();
