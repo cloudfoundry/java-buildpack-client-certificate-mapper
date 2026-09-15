@@ -121,10 +121,10 @@ Enables or disables certificate caching. When enabled, parsed `X509Certificate` 
 
 | Value | Behaviour |
 |-------|-----------|
-| `false` _(default)_ | Caching disabled; every request parses the certificate from scratch |
-| `true` | Caching enabled |
+| `true` _(default)_ | Caching enabled |
+| `false` | Caching disabled; every request parses the certificate from scratch |
 
-Caching is **opt-in** (disabled by default), like header stripping — enable it only where profiling shows the certificate parse is a measurable cost.
+Caching is **on by default**. Set to `false` if you'd rather have every request parse the certificate from scratch — e.g. while profiling, or if the ~1.5 MB worst-case memory (see below) is a concern for your deployment.
 
 **Only full-certificate headers are cached.** The cache exists to amortise the expensive ASN.1 parse of an actual certificate, so it is engaged only when the header carries a certificate to decode: an XFCC `Cert=` field, or a raw (non-XFCC) certificate value. Identity-only XFCC headers that carry just `Hash=`/`Subject=` (e.g. the CF app-identity headers on an mTLS domain) map no `X509Certificate` and are parsed inline regardless of this setting — caching them would only add a per-request SHA-256 keying cost for no benefit. See [Trust boundary and certificate validity](#trust-boundary-and-certificate-validity).
 
