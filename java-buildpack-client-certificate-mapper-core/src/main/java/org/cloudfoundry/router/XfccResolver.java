@@ -61,24 +61,34 @@ public final class XfccResolver {
         return this.certificateCache;
     }
 
-    /** Returns the parsed bundle for {@code rawValue}, using the cache when enabled. Only entries that
-     *  carry a certificate to decode are cached: an XFCC entry with a {@code Cert=} field, or a raw
+    /** Returns the parsed bundle for {@code rawValue}, using the cache when enabled. The cache is
+     *  consulted, by digest of the raw header value, <em>before</em> {@code rawValue} is parsed into
+     *  an {@link XfccEntry} — a hit returns the previously cached bundle directly, so a repeat of the
+     *  same header does not re-run the one-pass field scan just to discard it. Only entries that carry
+     *  a certificate to decode are stored on a miss: an XFCC entry with a {@code Cert=} field, or a raw
      *  (non-XFCC) certificate value. XFCC entries without {@code Cert=} (e.g. CF app-identity headers
-     *  carrying only {@code Hash=}/{@code Subject=}) have no expensive ASN.1 parse to amortise, so
-     *  caching them would only add a per-request SHA-256 keying cost for no benefit — they are parsed
-     *  inline. When the SHA-256 algorithm is unavailable (extremely unusual — logged once by
-     *  {@link #sha256Hex}) the request also falls back to inline parsing rather than caching under an
-     *  unsafe long key. */
+     *  carrying only {@code Hash=}/{@code Subject=}) have no expensive ASN.1 parse to amortise, so they
+     *  are parsed inline and never stored — though the digest is still computed for them, since whether
+     *  an entry carries a certificate can only be known after parsing it. When the SHA-256 algorithm is
+     *  unavailable (extremely unusual — logged once by {@link #sha256Hex}) the request also falls back
+     *  to inline parsing rather than caching under an unsafe long key. */
     public ParsedXfcc resolve(String rawValue) throws CertificateException, IOException {
-        XfccEntry xfcc = new XfccEntry(rawValue);
-        boolean carriesCertificate = xfcc.resemblesXfcc() ? xfcc.hasField(XfccField.CERT) : true;
-        if (this.certificateCache != null && carriesCertificate) {
+        if (this.certificateCache != null) {
             String cacheKey = sha256Hex(rawValue);
             if (cacheKey != null) {
-                return this.certificateCache.getOrCompute(cacheKey, () -> parseEntry(xfcc, rawValue));
+                ParsedXfcc cached = this.certificateCache.peek(cacheKey);
+                if (cached != null) {
+                    return cached;
+                }
+                XfccEntry xfcc = new XfccEntry(rawValue);
+                boolean carriesCertificate = xfcc.resemblesXfcc() ? xfcc.hasField(XfccField.CERT) : true;
+                if (carriesCertificate) {
+                    return this.certificateCache.getOrCompute(cacheKey, () -> parseEntry(xfcc, rawValue));
+                }
+                return parseEntry(xfcc, rawValue);
             }
         }
-        return parseEntry(xfcc, rawValue);
+        return parseEntry(new XfccEntry(rawValue), rawValue);
     }
 
     /** Parses a pre-detected {@link XfccEntry} into a {@link ParsedXfcc} bundle: the entry, the
