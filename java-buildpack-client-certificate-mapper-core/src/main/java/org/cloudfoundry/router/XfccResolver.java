@@ -28,6 +28,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,6 +50,11 @@ public final class XfccResolver {
 
     /** {@code null} when caching is disabled. */
     private final CertificateCache certificateCache;
+
+    /** Set once if {@code SHA-256} turns out to be unavailable — the JVM's set of security providers
+     *  does not change at runtime, so there is no point retrying {@link MessageDigest#getInstance}
+     *  (or re-logging the warning) on every subsequent request once this is known. */
+    private final AtomicBoolean sha256Unavailable = new AtomicBoolean();
 
     /** @param certificateCache the cache to use, or {@code null} to disable caching */
     public XfccResolver(CertificateCache certificateCache) throws CertificateException {
@@ -135,17 +141,26 @@ public final class XfccResolver {
 
     /** Returns the SHA-256 digest of {@code input} as 64 lowercase hex characters, or {@code null} if
      *  the SHA-256 algorithm is unavailable (in which case the caller falls back to no caching for that
-     *  request rather than using an unsafe long key). MessageDigest instances are not thread-safe, so a
-     *  fresh one is obtained per call; the cost is dominated by the digest computation itself.
-     *  Note: {@code input} is the URL-encoded PEM or base64 DER header value — not the decoded DER —
-     *  so this digest intentionally differs from the Envoy XFCC {@code Hash=} field. This is fine for
-     *  cache identity but the two values must not be compared. */
+     *  request rather than using an unsafe long key). Once unavailability is detected it is remembered
+     *  in {@link #sha256Unavailable} for the lifetime of this resolver: the JVM's security providers
+     *  cannot start supporting SHA-256 mid-run, so there is no reason to keep retrying
+     *  {@link MessageDigest#getInstance} (or re-logging the warning) on every request. MessageDigest
+     *  instances are not thread-safe, so a fresh one is obtained per call; the cost is dominated by the
+     *  digest computation itself. Note: {@code input} is the URL-encoded PEM or base64 DER header
+     *  value — not the decoded DER — so this digest intentionally differs from the Envoy XFCC
+     *  {@code Hash=} field. This is fine for cache identity but the two values must not be compared. */
     private String sha256Hex(String input) {
+        if (this.sha256Unavailable.get()) {
+            return null;
+        }
         MessageDigest md;
         try {
             md = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            LOGGER.warning("SHA-256 algorithm not available; skipping certificate cache for this request");
+            if (this.sha256Unavailable.compareAndSet(false, true)) {
+                LOGGER.warning("SHA-256 algorithm not available; disabling the certificate cache for the "
+                    + "lifetime of this filter");
+            }
             return null;
         }
         byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
