@@ -159,20 +159,35 @@ Invalid or non-positive values are ignored and the default is used (a warning is
 
 ### `org.cloudfoundry.router.certificate.header.hide`
 
-When enabled, the `X-Forwarded-Client-Cert` header is hidden from all downstream filters and servlets after the certificate has been parsed and stored as a request attribute. This prevents large PEM/DER certificate values from being needlessly processed by downstream infrastructure such as:
+When enabled, the `X-Forwarded-Client-Cert` header is hidden from all downstream filters and servlets after the certificate has been parsed and stored as a request attribute. This prevents large uuencoded PEM/DER certificate values from being needlessly processed by downstream infrastructure such as:
 
-- Distributed tracing filters (OpenTelemetry, Micrometer Tracing / Spring Cloud Sleuth)
 - Request logging filters (`CommonsRequestLoggingFilter`, Tomcat `RequestDumperValve`)
 - Security filters that iterate all headers
+- Servlet-`Filter`-based tracing instrumentation (e.g. Micrometer Tracing / Spring Cloud Sleuth's Brave filter) placed after this filter in the chain
+
+> **Note:** This only affects code that reads the header via the (wrapped) `HttpServletRequest` *after* this filter runs. Bytecode-instrumented tracing agents (e.g. the OpenTelemetry Java agent) commonly capture headers at the servlet container / dispatch level, before this filter's wrapper takes effect — for those, hiding the header has no impact, and filter ordering doesn't help either.
 
 The wrapper is only created when the header is actually present on the request, so there is no overhead for requests without a client certificate.
 
 | Value | Behaviour |
 |-------|-----------|
-| `true` _(default)_ | Header hidden from downstream filters via `HttpServletRequestWrapper` |
-| `false` | Header passed through unchanged |
+| `false` _(default)_ | Header passed through unchanged |
+| `true` | Header hidden from downstream filters via `HttpServletRequestWrapper` |
+
+Header hiding is **opt-in** (disabled by default), unlike certificate caching — this setting can change downstream *behaviour*, not just performance: any code after this filter in the chain that gates logic on the presence of the raw header would silently stop seeing it. That's a fail-open risk — a downstream security check that only activates "when this header is present" would quietly stop firing, with no error or log to signal it — so this filter cannot safely enable it by default without knowing what every consumer's downstream chain does. Enable it explicitly once you've confirmed no downstream code depends on the raw header being present.
 
 > **Note:** Hiding the header does not free the underlying string memory during the request — it prevents downstream code from reading it. Memory is reclaimed when the request completes and the original request object is GC'd.
+
+**Benchmark:** Measured with a Spring Boot app behind `CommonsRequestLoggingFilter` (which reads and logs all request headers, including the raw XFCC header, on every request), with the raw XFCC header as forwarded by CF Gorouter. `byte[]` allocation captured via Java Flight Recorder over a 40-second run at 500 requests/second:
+
+| `header.hide` | `cache.enabled` | Request logging filter | `byte[]` allocation |
+|---|---|---|---|
+| `false` | `false` | enabled | 1.47 GiB |
+| `true` | `false` | enabled | 791 MB |
+| `true` | `true` | enabled | 547 MB |
+| `true` | `true` | disabled | 60.5 MB |
+
+The largest impact by far is the `byte[]` allocations inside the logging filter itself — hiding the header is what removes most of them; caching removes the remaining repeated certificate parsing on top of that.
 
 ## Development
 

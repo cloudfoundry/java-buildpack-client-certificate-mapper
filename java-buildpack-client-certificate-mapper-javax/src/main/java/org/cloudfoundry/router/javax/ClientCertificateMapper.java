@@ -87,7 +87,7 @@ final class ClientCertificateMapper implements Filter {
             cache = new CertificateCache(cacheSize);
         }
         this.resolver = new XfccResolver(cache);
-        this.stripXfccHeader = "true".equalsIgnoreCase(System.getProperty(STRIP_HEADER_PROPERTY, "true"));
+        this.stripXfccHeader = "true".equalsIgnoreCase(System.getProperty(STRIP_HEADER_PROPERTY, "false"));
         logConfiguration(cacheEnabled, cacheSize);
     }
 

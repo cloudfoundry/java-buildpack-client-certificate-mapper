@@ -410,29 +410,13 @@ public final class ClientCertificateMapperTest {
     }
 
     @Test
-    public void stripXfccHeaderEnabledByDefault() throws IOException, ServletException {
+    public void stripXfccHeaderDisabledByDefault() throws IOException, ServletException {
         this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
         MockFilterChain chain = new MockFilterChain();
         this.mapper.doFilter(this.request, this.response, chain);
 
         HttpServletRequest downstream = (HttpServletRequest) chain.getRequest();
-        assertThat(downstream.getHeader(ClientCertificateMapper.HEADER)).isNull();
-    }
-
-    @Test
-    public void stripXfccHeaderExplicitlyDisabled() throws IOException, ServletException, CertificateException {
-        System.setProperty("org.cloudfoundry.router.certificate.header.hide", "false");
-        try {
-            ClientCertificateMapper mapper = new ClientCertificateMapper();
-            this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);
-            MockFilterChain chain = new MockFilterChain();
-            mapper.doFilter(this.request, this.response, chain);
-
-            HttpServletRequest downstream = (HttpServletRequest) chain.getRequest();
-            assertThat(downstream.getHeader(ClientCertificateMapper.HEADER)).isNotNull();
-        } finally {
-            System.clearProperty("org.cloudfoundry.router.certificate.header.hide");
-        }
+        assertThat(downstream.getHeader(ClientCertificateMapper.HEADER)).isNotNull();
     }
 
     @Test
