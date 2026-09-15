@@ -157,7 +157,7 @@ Controls the number of entries per cache generation. The total number of cached 
 
 Invalid or non-positive values are ignored and the default is used (a warning is logged).
 
-### `org.cloudfoundry.router.certificate.header.remove`
+### `org.cloudfoundry.router.certificate.header.hide`
 
 When enabled, the `X-Forwarded-Client-Cert` header is hidden from all downstream filters and servlets after the certificate has been parsed and stored as a request attribute. This prevents large PEM/DER certificate values from being needlessly processed by downstream infrastructure such as:
 
@@ -169,8 +169,8 @@ The wrapper is only created when the header is actually present on the request, 
 
 | Value | Behaviour |
 |-------|-----------|
-| `false` _(default)_ | Header passed through unchanged |
-| `true` | Header hidden from downstream filters via `HttpServletRequestWrapper` |
+| `true` _(default)_ | Header hidden from downstream filters via `HttpServletRequestWrapper` |
+| `false` | Header passed through unchanged |
 
 > **Note:** Hiding the header does not free the underlying string memory during the request — it prevents downstream code from reading it. Memory is reclaimed when the request completes and the original request object is GC'd.
 

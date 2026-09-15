@@ -54,7 +54,7 @@ final class ClientCertificateMapper implements Filter {
 
     private static final String CACHE_ENABLED_PROPERTY = "org.cloudfoundry.router.certificate.cache.enabled";
 
-    private static final String STRIP_HEADER_PROPERTY = "org.cloudfoundry.router.certificate.header.remove";
+    private static final String STRIP_HEADER_PROPERTY = "org.cloudfoundry.router.certificate.header.hide";
 
     private static final String CACHE_SIZE_PROPERTY = "org.cloudfoundry.router.certificate.cache.size";
 
@@ -87,7 +87,7 @@ final class ClientCertificateMapper implements Filter {
             cache = new CertificateCache(cacheSize);
         }
         this.resolver = new XfccResolver(cache);
-        this.stripXfccHeader = "true".equalsIgnoreCase(System.getProperty(STRIP_HEADER_PROPERTY, "false"));
+        this.stripXfccHeader = "true".equalsIgnoreCase(System.getProperty(STRIP_HEADER_PROPERTY, "true"));
         logConfiguration(cacheEnabled, cacheSize);
     }
 
