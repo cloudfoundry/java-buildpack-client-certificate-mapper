@@ -142,7 +142,7 @@ Caching is **on by default**. Set to `false` if you'd rather have every request 
 
 The short digest recovers ~14.6× of the per-hit cost. Under real concurrent load this compounded per-request CPU is what previously made a raw-key cache measurably worse than no cache at all.
 
-**Memory:** The cache uses a generational eviction strategy (two generations of up to 128 entries each, configurable via `org.cloudfoundry.router.certificate.cache.size`). Raw cert keys are typically 2–4 KB; with both generations full the cache holds ~256 `X509Certificate` objects plus ~1 MB of key strings, for a worst-case total of roughly **~1.5 MB**. Disable caching if this is a concern.
+**Memory:** The cache uses a generational eviction strategy (two generations of up to 128 entries each, configurable via `org.cloudfoundry.router.certificate.cache.size`). The cache **keys** are cheap: 64-character SHA-256 hex digests, ~16 KB total across 256 entries. The memory actually comes from the cached **values** — each is a `ParsedXfcc` bundle holding the parsed `X509Certificate` plus the `XfccEntry` it was derived from, which retains the raw `Cert=` substring (typically 1–2 KB). With both generations full (~256 entries), that's a worst-case total of roughly **~1.5 MB**. Disable caching if this is a concern.
 
 **Security note:** Cached entries are not expiry-checked on retrieval. The filter does not validate certificate validity on cache hits (nor on misses) — consistent with behaviour before caching was introduced. Applications that require expiry enforcement should check `X509Certificate.checkValidity()` on the mapped request attribute.
 
