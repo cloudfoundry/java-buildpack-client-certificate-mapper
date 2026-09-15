@@ -285,16 +285,13 @@ public final class CertificateCache {
         // where operators will see it without turning on FINE. Later rotations are routine and stay at FINE:
         // traffic with mostly unique certificates rotates every maxGenSize misses and would flood the log.
         boolean first = this.capacityReached.compareAndSet(false, true);
-        if (!first && !LOGGER.isLoggable(Level.FINE)) {
+        Level level = first ? Level.INFO : Level.FINE;
+        if (!LOGGER.isLoggable(level)) {
             return;
         }
         String message = "Certificate cache rotated a generation (" + statistics()
             + "). A low hit rate means the working set of certificates exceeds the cache size; raise"
             + " org.cloudfoundry.router.certificate.cache.size to retain more of them.";
-        if (first) {
-            LOGGER.info(message);
-        } else {
-            LOGGER.fine(message);
-        }
+        LOGGER.log(level, message);
     }
 }
