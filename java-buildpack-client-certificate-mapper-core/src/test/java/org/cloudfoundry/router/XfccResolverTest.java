@@ -49,16 +49,21 @@ public final class XfccResolverTest {
         "D%2D%2D%2D%0D%0A";
 
     @Test
-    public void identityOnlyXfccIsParsedInlineWithoutTouchingTheCache() throws Exception {
+    public void identityOnlyXfccIsAlsoCached() throws Exception {
         CertificateCache cache = new CertificateCache(16);
         XfccResolver resolver = new XfccResolver(cache);
+        String rawValue = "Hash=" + HASH + ";Subject=\"/CN=client\"";
 
-        ParsedXfcc parsed = resolver.resolve("Hash=" + HASH + ";Subject=\"/CN=client\"");
-
-        assertThat(parsed.certificate()).isNull();
-        assertThat(parsed.cfSubjectDn()).isNotNull();
-        assertThat(cache.getMissCount()).isZero();
+        ParsedXfcc first = resolver.resolve(rawValue);
+        assertThat(first.certificate()).isNull();
+        assertThat(first.cfSubjectDn()).isNotNull();
+        assertThat(cache.getMissCount()).isEqualTo(1);
         assertThat(cache.getHitCount()).isZero();
+
+        ParsedXfcc second = resolver.resolve(rawValue);
+        assertThat(second).isSameAs(first);
+        assertThat(cache.getMissCount()).isEqualTo(1);
+        assertThat(cache.getHitCount()).isEqualTo(1);
     }
 
     @Test
@@ -91,15 +96,20 @@ public final class XfccResolverTest {
     }
 
     @Test
-    public void chainOnlyXfccYieldsNoCertificateAndIsNotCached() throws Exception {
+    public void chainOnlyXfccYieldsNoCertificateButIsStillCached() throws Exception {
         CertificateCache cache = new CertificateCache(16);
         XfccResolver resolver = new XfccResolver(cache);
+        String rawValue = "Hash=" + HASH + ";Chain=" + NGINX_ESCAPED_CERT;
 
-        ParsedXfcc parsed = resolver.resolve("Hash=" + HASH + ";Chain=" + NGINX_ESCAPED_CERT);
-
-        assertThat(parsed.certificate()).isNull();
-        assertThat(cache.getMissCount()).isZero();
+        ParsedXfcc first = resolver.resolve(rawValue);
+        assertThat(first.certificate()).isNull();
+        assertThat(cache.getMissCount()).isEqualTo(1);
         assertThat(cache.getHitCount()).isZero();
+
+        ParsedXfcc second = resolver.resolve(rawValue);
+        assertThat(second).isSameAs(first);
+        assertThat(cache.getMissCount()).isEqualTo(1);
+        assertThat(cache.getHitCount()).isEqualTo(1);
     }
 
     @Test

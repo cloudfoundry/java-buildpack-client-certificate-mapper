@@ -62,16 +62,17 @@ public final class XfccResolver {
     }
 
     /** Returns the parsed bundle for {@code rawValue}, using the cache when enabled. The cache is
-     *  consulted, by digest of the raw header value, <em>before</em> {@code rawValue} is parsed into
-     *  an {@link XfccEntry} — a hit returns the previously cached bundle directly, so a repeat of the
-     *  same header does not re-run the one-pass field scan just to discard it. Only entries that carry
-     *  a certificate to decode are stored on a miss: an XFCC entry with a {@code Cert=} field, or a raw
-     *  (non-XFCC) certificate value. XFCC entries without {@code Cert=} (e.g. CF app-identity headers
-     *  carrying only {@code Hash=}/{@code Subject=}) have no expensive ASN.1 parse to amortise, so they
-     *  are parsed inline and never stored — though the digest is still computed for them, since whether
-     *  an entry carries a certificate can only be known after parsing it. When the SHA-256 algorithm is
-     *  unavailable (extremely unusual — logged once by {@link #sha256Hex}) the request also falls back
-     *  to inline parsing rather than caching under an unsafe long key. */
+     *  keyed by a SHA-256 digest of the raw header value and consulted, via {@link CertificateCache#peek}
+     *  <em>before</em> {@code rawValue} is parsed into an {@link XfccEntry} — a hit returns the
+     *  previously cached bundle directly, so a repeat of the same header does not re-run the one-pass
+     *  field scan just to discard it. Every entry that produces a digest is cached on a miss, including
+     *  identity-only XFCC headers (e.g. CF app-identity headers carrying only {@code Hash=}/
+     *  {@code Subject=}) and unsupported {@code Chain=}-only entries: those have no expensive ASN.1
+     *  parse to amortise, but since the digest is computed for them anyway (whether an entry carries a
+     *  certificate can only be known after parsing it), storing the result too means a repeat of the
+     *  same identity-only header also skips the field-map parse, at negligible extra memory cost. When
+     *  the SHA-256 algorithm is unavailable (extremely unusual — logged once by {@link #sha256Hex}) the
+     *  request falls back to inline parsing rather than caching under an unsafe long key. */
     public ParsedXfcc resolve(String rawValue) throws CertificateException, IOException {
         if (this.certificateCache != null) {
             String cacheKey = sha256Hex(rawValue);
@@ -80,12 +81,7 @@ public final class XfccResolver {
                 if (cached != null) {
                     return cached;
                 }
-                XfccEntry xfcc = new XfccEntry(rawValue);
-                boolean carriesCertificate = xfcc.resemblesXfcc() ? xfcc.hasField(XfccField.CERT) : true;
-                if (carriesCertificate) {
-                    return this.certificateCache.getOrCompute(cacheKey, () -> parseEntry(xfcc, rawValue));
-                }
-                return parseEntry(xfcc, rawValue);
+                return this.certificateCache.getOrCompute(cacheKey, () -> parseEntry(new XfccEntry(rawValue), rawValue));
             }
         }
         return parseEntry(new XfccEntry(rawValue), rawValue);
