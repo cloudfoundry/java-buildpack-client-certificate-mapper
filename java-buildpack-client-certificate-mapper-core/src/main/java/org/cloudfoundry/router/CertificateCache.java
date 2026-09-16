@@ -144,11 +144,15 @@ public final class CertificateCache {
     }
 
     /**
-     * Returns the cached bundle for {@code key} without recording a hit or a miss, or {@code null}
-     * if not present. Intended for callers that need to short-circuit expensive work (such as
-     * parsing the raw header into an {@link XfccEntry}) before they know whether the entry is even
-     * cache-eligible; such a caller records the miss itself once it decides to call
-     * {@link #getOrCompute}, so this method must stay silent to avoid double-counting.
+     * Returns the cached bundle for {@code key}, or {@code null} if not present. Intended for
+     * callers that need to short-circuit expensive work (such as parsing the raw header into an
+     * {@link XfccEntry}) before they know whether the entry is even cache-eligible.
+     *
+     * <p>A found entry records a hit, since a caller finding a value here never proceeds to
+     * {@link #getOrCompute} and so has no other opportunity to record it. A {@code null} result
+     * stays silent and does <em>not</em> record a miss: the caller is expected to fall through to
+     * {@link #getOrCompute}, which records the miss itself (and safely re-checks the key, so no
+     * double-count can occur even if another thread inserts it in between).
      */
     ParsedXfcc peek(String key) {
         ParsedXfcc value = currentGen.get(key);
