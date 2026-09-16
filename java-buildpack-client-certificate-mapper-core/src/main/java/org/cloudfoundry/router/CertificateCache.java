@@ -80,8 +80,10 @@ import java.util.logging.Logger;
  * behaviour before caching was introduced. Callers that require expiry enforcement should
  * check {@code X509Certificate.checkValidity()} on the mapped attribute themselves.
  *
- * <p>The implementation is safe for concurrent use. Under a simultaneous rotation race,
- * at most a few entries may be re-parsed once — no data is corrupted.
+ * <p>The implementation is safe for concurrent use. Reads ({@link #get}, {@link #peek}) and cache
+ * hits on {@link #getOrCompute} never take a lock. Only the rotation swap itself is serialized (see
+ * {@link #rotationLock}), so concurrent misses at capacity cannot cascade-rotate through several
+ * generations and discard entries other threads just added.
  *
  * <p><b>Logging.</b> Every lookup logs a hit or a miss at {@code FINE}. Generation rotation logs
  * a {@link #statistics() statistics} snapshot: the first rotation at {@code INFO}, because that is
@@ -106,6 +108,17 @@ public final class CertificateCache {
 
     /** Guards the one-off {@code INFO} log for the rotation that first takes the cache to capacity. */
     private final AtomicBoolean capacityReached = new AtomicBoolean();
+
+    /**
+     * Guards only the generation swap in {@link #rotateIfFull()}. Reads ({@link #get},
+     * {@link #peek}) and cache hits never take this lock — it is entered only on a miss that
+     * finds the current generation already full, which is rare relative to overall traffic.
+     * Without this guard, multiple threads can observe the same full generation concurrently and
+     * each perform a swap, cascading through several generations in quick succession: this
+     * discards entries other racing threads just added, can defeat the stampede-deduplication
+     * guarantee of {@link #getOrCompute}, and breaks the {@code 2 * maxGenSize} memory bound.
+     */
+    private final Object rotationLock = new Object();
 
     private volatile ConcurrentHashMap<String, ParsedXfcc> currentGen;
     private volatile ConcurrentHashMap<String, ParsedXfcc> prevGen;
@@ -217,10 +230,15 @@ public final class CertificateCache {
 
     private void rotateIfFull() {
         if (currentGen.size() >= maxGenSize) {
-            prevGen = currentGen;
-            currentGen = new ConcurrentHashMap<>();
-            this.rotations.increment();
-            logRotation();
+            synchronized (rotationLock) {
+                // Re-check: another thread may have already rotated while this one waited for the lock.
+                if (currentGen.size() >= maxGenSize) {
+                    prevGen = currentGen;
+                    currentGen = new ConcurrentHashMap<>();
+                    this.rotations.increment();
+                    logRotation();
+                }
+            }
         }
     }
 
