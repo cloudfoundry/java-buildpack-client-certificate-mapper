@@ -144,6 +144,20 @@ public final class XfccResolver {
         }
     }
 
+    /**
+     * Decodes a header value in either of the two supported raw-certificate formats:
+     * <ol>
+     *   <li>Plain base64-encoded DER (e.g. CF Gorouter {@code xfcc_format: raw}) — tried first.</li>
+     *   <li>URL-encoded PEM (e.g. nginx {@code $ssl_client_escaped_cert}, Envoy XFCC {@code Cert=}/
+     *       {@code Chain=}, both documented as "URL encoded PEM format") — the fallback below.</li>
+     * </ol>
+     * The fallback is safe to round-trip through a {@code String} as UTF-8: PEM is armored ASCII
+     * text (base64 body plus {@code -----BEGIN/END-----} lines), never raw binary DER, so
+     * URL-decoding it and re-encoding as UTF-8 cannot lose or alter a byte. Base64 is tried first
+     * specifically so a raw DER header (whose base64 alphabet never collides with PEM's
+     * {@code -}/space/newline or their percent-escaped forms) is never routed through this
+     * String-based fallback.
+     */
     private byte[] decodeHeader(String rawCertificate) {
         try {
             return Base64.getDecoder().decode(rawCertificate);
@@ -160,9 +174,11 @@ public final class XfccResolver {
      *  {@link #sha256Unavailable} was set at construction (in which case the caller falls back to no
      *  caching for that request rather than using an unsafe long key). {@code MessageDigest} instances
      *  are not thread-safe, so a fresh one is obtained per call; the cost is dominated by the digest
-     *  computation itself. Note: {@code input} is the URL-encoded PEM or base64 DER header value — not
-     *  the decoded DER — so this digest intentionally differs from the Envoy XFCC {@code Hash=} field.
-     *  This is fine for cache identity but the two values must not be compared. */
+     *  computation itself. Note: {@code input} is the header value exactly as received — either
+     *  URL-encoded PEM text or base64-encoded DER (see {@link #decodeHeader}) — never the decoded DER
+     *  bytes, so this digest intentionally differs from the Envoy XFCC {@code Hash=} field (which is
+     *  SHA-256 of the decoded DER). This is fine for cache identity but the two values must not be
+     *  compared. */
     private String sha256Hex(String input) {
         if (this.sha256Unavailable) {
             return null;

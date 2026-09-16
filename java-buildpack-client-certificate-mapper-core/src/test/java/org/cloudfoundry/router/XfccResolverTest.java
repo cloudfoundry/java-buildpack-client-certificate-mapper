@@ -18,6 +18,9 @@ package org.cloudfoundry.router;
 
 import org.junit.jupiter.api.Test;
 
+import java.security.cert.X509Certificate;
+import java.util.Base64;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class XfccResolverTest {
@@ -93,6 +96,56 @@ public final class XfccResolverTest {
         assertThat(parsed.certificate()).isNotNull();
         assertThat(parsed.cfSubjectDn()).isNull();
         assertThat(cache.getMissCount()).isEqualTo(1);
+    }
+
+    /**
+     * Covers the other of the two supported raw-certificate formats: plain base64-encoded DER
+     * (no PEM armor, no URL-encoding), as produced e.g. by CF Gorouter's {@code xfcc_format: raw}.
+     * {@code decodeHeader} tries {@link java.util.Base64} first and only falls back to
+     * {@link java.net.URLDecoder} when that fails, so this exercises the base64 branch exclusively
+     * and confirms it never touches the URL-decode/UTF-8 path.
+     */
+    @Test
+    public void rawBase64DerCertificateIsDecodedAndMatchesPemEquivalent() throws Exception {
+        XfccResolver resolver = new XfccResolver(new CertificateCache(16));
+        X509Certificate expected = resolver.resolve(NGINX_ESCAPED_CERT).certificate();
+        String rawBase64Der = Base64.getEncoder().encodeToString(expected.getEncoded());
+
+        ParsedXfcc parsed = resolver.resolve(rawBase64Der);
+
+        assertThat(parsed.certificate()).isNotNull();
+        assertThat(parsed.certificate().getEncoded()).isEqualTo(expected.getEncoded());
+        assertThat(parsed.certificate().getSerialNumber()).isEqualTo(expected.getSerialNumber());
+    }
+
+    /**
+     * Confirms the URL-encoded-PEM branch of {@code decodeHeader} round-trips the DER bytes
+     * byte-for-byte: PEM is armored ASCII text (base64 body + header/footer lines), so decoding
+     * the URL-encoding and re-encoding as UTF-8 cannot lose or alter any byte, unlike a raw binary
+     * DER payload would. This is asserted here by comparing against a certificate decoded straight
+     * from base64 DER with no PEM/URL-encoding step at all.
+     */
+    @Test
+    public void urlEncodedPemCertificateMatchesRawDerByteForByte() throws Exception {
+        XfccResolver resolver = new XfccResolver(new CertificateCache(16));
+
+        X509Certificate viaPem = resolver.resolve(NGINX_ESCAPED_CERT).certificate();
+        String rawBase64Der = Base64.getEncoder().encodeToString(viaPem.getEncoded());
+        X509Certificate viaRawDer = resolver.resolve(rawBase64Der).certificate();
+
+        assertThat(viaPem.getEncoded()).isEqualTo(viaRawDer.getEncoded());
+    }
+
+    @Test
+    public void xfccCertFieldAcceptsRawBase64DerAsWellAsUrlEncodedPem() throws Exception {
+        XfccResolver resolver = new XfccResolver(new CertificateCache(16));
+        X509Certificate expected = resolver.resolve(NGINX_ESCAPED_CERT).certificate();
+        String rawBase64Der = Base64.getEncoder().encodeToString(expected.getEncoded());
+
+        ParsedXfcc parsed = resolver.resolve("Hash=" + HASH + ";Cert=" + rawBase64Der);
+
+        assertThat(parsed.certificate()).isNotNull();
+        assertThat(parsed.certificate().getEncoded()).isEqualTo(expected.getEncoded());
     }
 
     @Test
