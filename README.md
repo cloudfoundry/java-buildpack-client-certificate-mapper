@@ -180,6 +180,8 @@ Header hiding is **opt-in** (disabled by default), unlike certificate caching �
 
 > **Note:** Hiding the header does not free the underlying string memory during the request — it prevents downstream code from reading it. Memory is reclaimed when the request completes and the original request object is GC'd.
 
+> **Warning — hiding also applies when certificate parsing fails.** The header is hidden whenever it is present, *regardless* of whether this filter successfully parsed a certificate from it (a malformed or unparseable `Cert=`/raw value is logged as a warning, but the header is still stripped). If enabled, downstream code must not treat "raw header absent" as "no client certificate was ever presented" — a malformed or attacker-supplied value produces the same downstream signal (no header, no `X509Certificate` attribute) as a request that never carried the header at all. Downstream authorization decisions should key off the `ATTRIBUTE` this filter sets (or `HttpServletRequest.getAttribute(...)`), not off raw header presence.
+
 **Benchmark:** Measured with a Spring Boot app behind `CommonsRequestLoggingFilter` (which reads and logs all request headers, including the raw XFCC header, on every request), with the raw XFCC header as forwarded by CF Gorouter. `byte[]` allocation captured via Java Flight Recorder over a 40-second run at 500 requests/second:
 
 | `header.hide` | `cache.enabled` | Request logging filter | `byte[]` allocation |
