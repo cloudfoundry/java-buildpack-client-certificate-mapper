@@ -114,6 +114,25 @@ public final class XfccHeaderParserTest {
         assertThat(XfccHeaderParser.parseCfSubjectDn(null)).isNull();
     }
 
+    /**
+     * The comma-split is not RFC 4514 escape-aware, so an unescaped comma inside CN (e.g. from a
+     * Gorouter FORWARD-mode passthrough header not shaped like CF's own instance-identity certs,
+     * which always use plain UUIDs) shifts the split. This documents the resulting garbage
+     * instanceGuid; the other, comma-free RDNs (Relative Distinguished Names, the individual
+     * comma-separated components of the Subject DN) still parse correctly. A warning is logged (not
+     * asserted here) since the value no longer looks like a UUID.
+     */
+    @Test
+    public void parseCfSubjectDnUnescapedCommaInCnShiftsButOtherFieldsSurvive() {
+        String subject = "CN=abc\\,def,OU=app:aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb,"
+            + "OU=space:cccccccc-4444-5555-6666-dddddddddddd,OU=organization:eeeeeeee-7777-8888-9999-ffffffffffff";
+        CfSubjectDn dn = XfccHeaderParser.parseCfSubjectDn(subject);
+        assertThat(dn.instanceGuid).isEqualTo("abc\\");
+        assertThat(dn.appGuid).isEqualTo("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb");
+        assertThat(dn.spaceGuid).isEqualTo("cccccccc-4444-5555-6666-dddddddddddd");
+        assertThat(dn.orgGuid).isEqualTo("eeeeeeee-7777-8888-9999-ffffffffffff");
+    }
+
     @Test
     public void parseCfSubjectDnEquality() {
         String subject = "CN=inst,OU=app:a1,OU=space:s1,OU=organization:o1";
