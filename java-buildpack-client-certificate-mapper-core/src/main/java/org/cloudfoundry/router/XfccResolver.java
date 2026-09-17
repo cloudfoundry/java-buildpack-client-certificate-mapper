@@ -52,8 +52,8 @@ public final class XfccResolver {
 
     /** {@code null} when SHA-256 is unavailable (extremely unusual) or caching is disabled; in
      *  that case every request falls back to inline parsing without a digest-based cache key.
-     *  When present, this instance is never digested directly -- only {@link MessageDigest#clone()}d
-     *  per call (see {@link #sha256Hex}), since {@code MessageDigest} instances are not thread-safe.
+     *  When present, this instance is never digested directly -- it is cloned via
+     *  {@link MessageDigest#clone()} per call (see {@link #sha256Hex}), since {@code MessageDigest} instances are not thread-safe.
      *  Cloning a prototype avoids the provider-lookup cost of {@link MessageDigest#getInstance}
      *  on every request. */
     private final MessageDigest digestPrototype;
