@@ -32,6 +32,19 @@ public final class XfccEntryTest {
         assertThat(new XfccEntry("Hash=abc123;Cert=xyz").resemblesXfcc()).isTrue();
     }
 
+    /**
+     * Envoy only emits Hash= when a cert digest was computed (see
+     * conn_manager_utility.cc: {@code if (!cert_digest.empty())}); a Subject-only entry is
+     * possible from a generic Envoy producer, or when Gorouter is configured to forward an
+     * XFCC header as-is (FORWARD mode) rather than replacing it.
+     */
+    @Test
+    public void resemblesXfccForSubjectOnlyEntry() {
+        XfccEntry entry = new XfccEntry("Subject=\"/CN=client\"");
+        assertThat(entry.resemblesXfcc()).isTrue();
+        assertThat(entry.get(XfccField.SUBJECT)).isEqualTo("/CN=client");
+    }
+
     @Test
     public void doesNotResembleXfccForRawCert() {
         assertThat(new XfccEntry("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A").resemblesXfcc()).isFalse();

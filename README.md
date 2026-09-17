@@ -74,7 +74,7 @@ The `Hash=` field (a SHA-256 fingerprint of the leaf certificate, set by the rou
 
 ### XFCC detection and fallback behaviour
 
-An entry is detected as XFCC format when it structurally begins with a short (≤ 20 characters) all-letter key followed by `=`, **and** contains at least one of `Hash=`, `Cert=`, or `Chain=`. JSON format is not supported.
+An entry is detected as XFCC format when it structurally begins with a short (≤ 20 characters) all-letter key followed by `=`, **and** contains at least one of `Hash=`, `Cert=`, `Chain=`, or `Subject=`. JSON format is not supported.
 
 If an entry passes the structural check but contains none of the recognised cert-related fields (e.g. only unknown future fields), it is treated as a raw certificate value; parsing will fail and a warning is logged. This preserves the same external behaviour as the raw-cert fallback path.
 

@@ -306,6 +306,22 @@ public final class ClientCertificateMapperTest {
             .isEqualTo("/CN=client");
     }
 
+    /**
+     * Subject= can arrive without Hash= from a generic Envoy producer (Envoy only emits Hash=
+     * when a cert digest was computed) or when Gorouter forwards an XFCC header as-is
+     * (FORWARD mode). It is still treated as XFCC identity: no certificate, but the CF Subject
+     * DN attribute is set and no spurious parse-failure warning is logged.
+     */
+    @Test
+    public void subjectOnlyEntryWithoutHashIsTreatedAsXfccIdentity() throws IOException, ServletException {
+        this.request.addHeader(ClientCertificateMapper.HEADER, "Subject=\"/CN=client\"");
+
+        this.mapper.doFilter(this.request, this.response, this.filterChain);
+
+        assertThat(this.request.getAttribute(XfccAttributes.HASH)).isNull();
+        assertThat(this.request.getAttribute(XfccAttributes.SUBJECT)).isEqualTo("/CN=client");
+    }
+
     @Test
     public void rawCertHasNoXfccAttributes() throws IOException, ServletException {
         this.request.addHeader(ClientCertificateMapper.HEADER, CERTIFICATE_1);

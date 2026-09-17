@@ -46,9 +46,9 @@ public final class XfccEntry {
         this.fields = xfcc ? parseOnce(raw) : Collections.emptyMap();
     }
 
-    /** Returns true if the entry is XFCC format and contains at least one of Hash=, Cert=, or Chain=. */
+    /** Returns true if the entry is XFCC format and contains at least one of Hash=, Cert=, Chain=, or Subject=. */
     public boolean resemblesXfcc() {
-        return xfcc && (hasField(XfccField.HASH) || hasField(XfccField.CERT) || hasField(XfccField.CHAIN));
+        return xfcc && (hasField(XfccField.HASH) || hasField(XfccField.CERT) || hasField(XfccField.CHAIN) || hasField(XfccField.SUBJECT));
     }
 
     /** Returns the value of the given field, or {@code null} if absent. */
