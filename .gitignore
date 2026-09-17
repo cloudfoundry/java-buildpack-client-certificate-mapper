@@ -5,3 +5,4 @@ dependency-reduced-pom.xml
 target/
 **/target/
 *.swp
+report.*.json

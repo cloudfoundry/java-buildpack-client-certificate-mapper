@@ -46,9 +46,9 @@ public final class XfccEntry {
         this.fields = xfcc ? parseOnce(raw) : Collections.emptyMap();
     }
 
-    /** Returns true if the entry is XFCC format and contains at least one of Hash=, Cert=, or Chain=. */
+    /** Returns true if the entry is XFCC format and contains at least one of Hash=, Cert=, Chain=, or Subject=. */
     public boolean resemblesXfcc() {
-        return xfcc && (hasField(XfccField.HASH) || hasField(XfccField.CERT) || hasField(XfccField.CHAIN));
+        return xfcc && (hasField(XfccField.HASH) || hasField(XfccField.CERT) || hasField(XfccField.CHAIN) || hasField(XfccField.SUBJECT));
     }
 
     /** Returns the value of the given field, or {@code null} if absent. */
@@ -129,16 +129,19 @@ public final class XfccEntry {
 
     /**
      * Reads a field value into {@code result} and returns the start position of the next field.
-     * Strips surrounding quotes and unescapes {@code \"} if quoted (only when {@code \"} is present),
+     * Strips surrounding quotes and unescapes any {@code \}-escaped character per RFC 9110
+     * quoted-pair rules (e.g. {@code \"} -> {@code "}, {@code \\} -> {@code \}) if quoted,
      * otherwise reads up to the next {@code ;}.
      * Malformed input (unclosed quote, trailing backslash) is handled gracefully.
      */
     private static int readValueInto(String raw, int start, int len, XfccField field, Map<XfccField, String> result) {
         if (start < len && raw.charAt(start) == '"') {
             int end = start + 1;
+            boolean hasEscape = false;
             while (end < len) {
                 char c = raw.charAt(end);
                 if (c == '\\') {
+                    hasEscape = true;
                     end = Math.min(end + 2, len);
                 } else if (c == '"') {
                     break;
@@ -147,8 +150,8 @@ public final class XfccEntry {
                 }
             }
             String content = raw.substring(start + 1, Math.min(end, len));
-            // avoid String allocation when no escaped quotes (common case: CF Gorouter GUIDs)
-            result.put(field, content.indexOf("\\\"") >= 0 ? content.replace("\\\"", "\"") : content);
+            // avoid allocation when no escaped characters present (common case: CF Gorouter GUIDs)
+            result.put(field, hasEscape ? unescapeQuotedPairs(content) : content);
             int afterQuote = Math.min(end + 1, len);
             return (afterQuote < len && raw.charAt(afterQuote) == ';') ? afterQuote + 1 : afterQuote;
         }
@@ -159,6 +162,28 @@ public final class XfccEntry {
         }
         result.put(field, raw.substring(start, semi));
         return semi + 1;
+    }
+
+    /**
+     * Unescapes RFC 9110 quoted-pairs: a backslash followed by any character represents that
+     * character literally, so the backslash is dropped (e.g. {@code \"} -> {@code "},
+     * {@code \\} -> {@code \}). A trailing lone backslash (malformed input) is kept as-is.
+     */
+    private static String unescapeQuotedPairs(String content) {
+        int len = content.length();
+        StringBuilder result = new StringBuilder(len);
+        int i = 0;
+        while (i < len) {
+            char c = content.charAt(i);
+            if (c == '\\' && i + 1 < len) {
+                result.append(content.charAt(i + 1));
+                i += 2;
+            } else {
+                result.append(c);
+                i++;
+            }
+        }
+        return result.toString();
     }
 
     /**

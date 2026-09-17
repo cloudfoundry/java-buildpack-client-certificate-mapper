@@ -19,6 +19,7 @@ package org.cloudfoundry.router;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -113,6 +114,25 @@ public final class XfccHeaderParserTest {
         assertThat(XfccHeaderParser.parseCfSubjectDn(null)).isNull();
     }
 
+    /**
+     * The comma-split is not RFC 4514 escape-aware, so an unescaped comma inside CN (e.g. from a
+     * Gorouter FORWARD-mode passthrough header not shaped like CF's own instance-identity certs,
+     * which always use plain UUIDs) shifts the split. This documents the resulting garbage
+     * instanceGuid; the other, comma-free RDNs (Relative Distinguished Names, the individual
+     * comma-separated components of the Subject DN) still parse correctly. A warning is logged (not
+     * asserted here) since the value no longer looks like a UUID.
+     */
+    @Test
+    public void parseCfSubjectDnUnescapedCommaInCnShiftsButOtherFieldsSurvive() {
+        String subject = "CN=abc\\,def,OU=app:aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb,"
+            + "OU=space:cccccccc-4444-5555-6666-dddddddddddd,OU=organization:eeeeeeee-7777-8888-9999-ffffffffffff";
+        CfSubjectDn dn = XfccHeaderParser.parseCfSubjectDn(subject);
+        assertThat(dn.instanceGuid).isEqualTo("abc\\");
+        assertThat(dn.appGuid).isEqualTo("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb");
+        assertThat(dn.spaceGuid).isEqualTo("cccccccc-4444-5555-6666-dddddddddddd");
+        assertThat(dn.orgGuid).isEqualTo("eeeeeeee-7777-8888-9999-ffffffffffff");
+    }
+
     @Test
     public void parseCfSubjectDnEquality() {
         String subject = "CN=inst,OU=app:a1,OU=space:s1,OU=organization:o1";
@@ -148,6 +168,19 @@ public final class XfccHeaderParserTest {
         assertThat(dn.appGuid).isNull();
         assertThat(dn.spaceGuid).isNull();
         assertThat(dn.orgGuid).isNull();
+    }
+
+    @Test
+    public void splitHeaderValuesNullEnumerationReturnsEmptyList() {
+        // HttpServletRequest.getHeaders(name) may return null per the Servlet spec when the
+        // container restricts header access; this must not throw.
+        assertThat(XfccHeaderParser.splitHeaderValues((java.util.Enumeration<String>) null)).isEmpty();
+    }
+
+    @Test
+    public void splitHeaderValuesEnumerationDelegatesToListVariant() {
+        java.util.Enumeration<String> headers = Collections.enumeration(Arrays.asList("a", "b,c"));
+        assertThat(XfccHeaderParser.splitHeaderValues(headers)).containsExactly("a", "b", "c");
     }
 
 }
