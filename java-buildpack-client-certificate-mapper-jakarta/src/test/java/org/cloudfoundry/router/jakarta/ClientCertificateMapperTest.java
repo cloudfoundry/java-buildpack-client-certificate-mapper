@@ -23,10 +23,12 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.IOException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
+import java.util.Enumeration;
 
 import org.cloudfoundry.router.XfccAttributes;
 import org.cloudfoundry.router.CertificateCache;
@@ -577,5 +579,29 @@ public final class ClientCertificateMapperTest {
         } finally {
             System.clearProperty("org.cloudfoundry.router.certificate.cache.enabled");
         }
+    }
+
+    /**
+     * The Servlet spec permits {@code HttpServletRequest.getHeaders(name)} to return {@code null}
+     * when the container restricts header access. {@code Collections.list(null)} throws
+     * {@link NullPointerException}, which is not a {@link CertificateException} or
+     * {@link IllegalArgumentException}, so it would propagate uncaught out of {@code doFilter}
+     * instead of being logged like a normal parse failure.
+     */
+    @Test
+    public void nullHeadersEnumerationDoesNotThrow() throws Exception {
+        HttpServletRequest nullHeadersRequest = new HttpServletRequestWrapper(new MockHttpServletRequest()) {
+            @Override
+            public Enumeration<String> getHeaders(String name) {
+                if (ClientCertificateMapper.HEADER.equalsIgnoreCase(name)) {
+                    return null;
+                }
+                return super.getHeaders(name);
+            }
+        };
+
+        this.mapper.doFilter(nullHeadersRequest, this.response, this.filterChain);
+
+        assertThat(this.filterChain.getRequest()).isNotNull();
     }
 }

@@ -19,6 +19,7 @@ package org.cloudfoundry.router;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -148,6 +149,19 @@ public final class XfccHeaderParserTest {
         assertThat(dn.appGuid).isNull();
         assertThat(dn.spaceGuid).isNull();
         assertThat(dn.orgGuid).isNull();
+    }
+
+    @Test
+    public void splitHeaderValuesNullEnumerationReturnsEmptyList() {
+        // HttpServletRequest.getHeaders(name) may return null per the Servlet spec when the
+        // container restricts header access; this must not throw.
+        assertThat(XfccHeaderParser.splitHeaderValues((java.util.Enumeration<String>) null)).isEmpty();
+    }
+
+    @Test
+    public void splitHeaderValuesEnumerationDelegatesToListVariant() {
+        java.util.Enumeration<String> headers = Collections.enumeration(Arrays.asList("a", "b,c"));
+        assertThat(XfccHeaderParser.splitHeaderValues(headers)).containsExactly("a", "b", "c");
     }
 
 }

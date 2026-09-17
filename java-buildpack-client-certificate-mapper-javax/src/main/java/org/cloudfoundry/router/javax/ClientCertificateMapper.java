@@ -197,7 +197,7 @@ final class ClientCertificateMapper implements Filter {
     }
 
     private List<String> getRawCertificates(HttpServletRequest request) {
-        return XfccHeaderParser.splitHeaderValues(Collections.list(request.getHeaders(HEADER)));
+        return XfccHeaderParser.splitHeaderValues(request.getHeaders(HEADER));
     }
 
     private static final class XfccStrippingRequestWrapper extends HttpServletRequestWrapper {

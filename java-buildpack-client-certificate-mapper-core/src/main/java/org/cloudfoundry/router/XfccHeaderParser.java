@@ -18,6 +18,7 @@ package org.cloudfoundry.router;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -103,6 +104,16 @@ public final class XfccHeaderParser {
             }
         }
         return result;
+    }
+
+    /**
+     * Same as {@link #splitHeaderValues(List)}, but accepts the {@link Enumeration} returned by
+     * {@code HttpServletRequest.getHeaders(name)} directly. The Servlet spec permits that method
+     * to return {@code null} when the container restricts header access; this overload treats
+     * {@code null} the same as an absent header instead of throwing.
+     */
+    public static List<String> splitHeaderValues(Enumeration<String> headerValues) {
+        return splitHeaderValues(headerValues == null ? null : Collections.list(headerValues));
     }
 
     private static void splitOnCommasRespectingQuotes(String value, List<String> result) {
