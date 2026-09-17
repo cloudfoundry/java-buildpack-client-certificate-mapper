@@ -155,6 +155,13 @@ public final class XfccEntryTest {
     }
 
     @Test
+    public void getEscapedBackslashInsideQuotedValueIsUnescaped() {
+        // Raw header bytes: Subject="CN=C:\\Path" — RFC 9110 quoted-pair \\ means a literal \
+        XfccEntry entry = new XfccEntry("Hash=abc;Subject=\"CN=C:\\\\Path\"");
+        assertThat(entry.get(XfccField.SUBJECT)).isEqualTo("CN=C:\\Path");
+    }
+
+    @Test
     public void unknownFieldWithQuotedValueContainingSemicolonIsSkipped() {
         // skipUnknownField must not treat ';' inside quotes as a field separator
         XfccEntry entry = new XfccEntry("FutureField=\"val;with;semis\";Hash=abc123;Cert=xyz");
