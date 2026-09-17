@@ -176,7 +176,7 @@ public final class ClientCertificateMapperTest {
 
     /** Each entry in a multi-header request is cached independently, keyed by its own digest, so a
      *  repeat request with the same two (distinct) headers must hit both cache slots and reproduce
-     *  the same objects in the same order — caching must not merge, reorder, or cross-contaminate
+     *  the same objects in the same order -- caching must not merge, reorder, or cross-contaminate
      *  entries. Relies on caching being enabled (the default). */
     @Test
     public void multipleHeadersEachCachedIndependently() throws IOException, ServletException {
@@ -510,7 +510,7 @@ public final class ClientCertificateMapperTest {
             "Hash=078c0ea84e084ea1c8bf4719ede79c5b078c0ea84e084ea1c8bf4719ede79c5b");
         this.mapper.doFilter(request2, this.response, new MockFilterChain());
 
-        // Must not return a certificate — Cert= was absent, no cache hit allowed
+        // Must not return a certificate -- Cert= was absent, no cache hit allowed
         assertThat(request2.getAttribute(ClientCertificateMapper.ATTRIBUTE)).isNull();
     }
 
