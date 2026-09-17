@@ -45,7 +45,7 @@ import org.cloudfoundry.router.XfccResolver;
 
 /**
  * A Servlet {@link Filter} that translates the {@code X-Forwarded-Client} HTTP header to the {@code jakarta.servlet.request.X509Certificate} Servlet attribute.  This implementation handles both
- * multiple headers as well as the <a href=https://tools.ietf.org/html/rfc7230#section-3.2.2>RFC 7230</a> comma delimited equivalent.
+ * multiple headers as well as the <a href=https://www.rfc-editor.org/rfc/rfc9110#section-5.3>RFC 9110</a> comma delimited equivalent.
  */
 final class ClientCertificateMapper implements Filter {
 
@@ -257,6 +257,10 @@ final class ClientCertificateMapper implements Filter {
         // Any async dispatch or AsyncContext.getRequest() call downstream would then see the original,
         // unstripped request and the hidden header would leak back in. Registering "this" explicitly
         // keeps the stripping wrapper in the async request as well.
+        // Known limitation: this.response is the response captured when this wrapper was built. If a
+        // downstream filter wraps the response again before calling the zero-arg startAsync(), that
+        // newer wrapper is not seen here and the stale response is passed instead, which may violate
+        // the startAsync(request, response) contract. Only reachable when header hiding is enabled.
         @Override
         public AsyncContext startAsync() throws IllegalStateException {
             return startAsync(this, this.response);
