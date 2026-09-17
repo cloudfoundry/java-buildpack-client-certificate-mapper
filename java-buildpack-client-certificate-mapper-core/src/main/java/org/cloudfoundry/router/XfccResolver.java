@@ -50,30 +50,53 @@ public final class XfccResolver {
     /** {@code null} when caching is disabled. */
     private final CertificateCache certificateCache;
 
-    /** Determined once at construction: {@code true} if {@code SHA-256} is unavailable, so caching
-     *  cannot use a digest-based key. The JVM's set of security providers does not change at runtime,
-     *  and {@code SHA-256} is a standard algorithm every conformant JVM must support, so checking once
-     *  up front — logging a single warning here rather than discovering it only under request load —
-     *  is strictly better than probing {@link MessageDigest#getInstance} again on every request. */
-    private final boolean sha256Unavailable;
+    /** {@code null} when SHA-256 is unavailable (extremely unusual) or caching is disabled; in
+     *  that case every request falls back to inline parsing without a digest-based cache key.
+     *  When present, this instance is never digested directly -- only {@link MessageDigest#clone()}d
+     *  per call (see {@link #sha256Hex}), since {@code MessageDigest} instances are not thread-safe.
+     *  Cloning a prototype avoids the provider-lookup cost of {@link MessageDigest#getInstance}
+     *  on every request. */
+    private final MessageDigest digestPrototype;
+
+    /** Whether {@link #digestPrototype} supports {@link MessageDigest#clone()}, probed once at
+     *  construction (see {@link #probeCloneSupport}) so {@link #sha256Hex} never has to retry
+     *  {@code clone()} and re-catch {@link CloneNotSupportedException} on every request; it is
+     *  meaningless when {@link #digestPrototype} is {@code null}. */
+    private final boolean cloneSupported;
 
     /** @param certificateCache the cache to use, or {@code null} to disable caching */
     public XfccResolver(CertificateCache certificateCache) throws CertificateException {
         this.certificateFactory = CertificateFactory.getInstance("X.509");
         this.certificateCache = certificateCache;
-        this.sha256Unavailable = certificateCache != null && !isSha256Available();
+        this.digestPrototype = certificateCache != null ? createSha256Prototype() : null;
+        this.cloneSupported = this.digestPrototype != null && probeCloneSupport(this.digestPrototype);
     }
 
-    /** Probes {@code SHA-256} availability once at construction, logging a warning if it is missing
-     *  so operators learn about the degraded (uncached) mode at startup rather than from a flood of
-     *  per-request log lines once traffic arrives. */
-    private static boolean isSha256Available() {
+    /** Creates the SHA-256 prototype {@link MessageDigest} once at construction, logging a warning
+     *  if unavailable so operators learn about the degraded (uncached) mode at startup rather than
+     *  from a flood of per-request log lines once traffic arrives. Returns {@code null} on failure. */
+    private static MessageDigest createSha256Prototype() {
         try {
-            MessageDigest.getInstance("SHA-256");
-            return true;
+            return MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
             LOGGER.warning("SHA-256 algorithm not available; the certificate cache is disabled for the "
                 + "lifetime of this filter");
+            return null;
+        }
+    }
+
+    /** Probes once, at construction, whether {@code prototype} supports {@link MessageDigest#clone()}
+     *  (true for the JDK's built-in SHA-256 implementation, but not guaranteed by the JCA contract
+     *  for every provider). Logging and remembering the result here means {@link #sha256Hex} never
+     *  needs to retry {@code clone()} and re-catch {@link CloneNotSupportedException} on every one of
+     *  potentially millions of requests -- it takes the {@code getInstance} path directly instead. */
+    private static boolean probeCloneSupport(MessageDigest prototype) {
+        try {
+            prototype.clone();
+            return true;
+        } catch (CloneNotSupportedException e) {
+            LOGGER.warning("MessageDigest.clone() not supported by the SHA-256 provider; falling back "
+                + "to MessageDigest.getInstance() per request");
             return false;
         }
     }
@@ -85,7 +108,7 @@ public final class XfccResolver {
 
     /** Returns the parsed bundle for {@code rawValue}, using the cache when enabled. The cache is
      *  keyed by a SHA-256 digest of the raw header value and consulted, via {@link CertificateCache#peek}
-     *  <em>before</em> {@code rawValue} is parsed into an {@link XfccEntry} — a hit returns the
+     *  <em>before</em> {@code rawValue} is parsed into an {@link XfccEntry} -- a hit returns the
      *  previously cached bundle directly, so a repeat of the same header does not re-run the one-pass
      *  field scan just to discard it. Every entry that produces a digest is cached on a miss, including
      *  identity-only XFCC headers (e.g. CF app-identity headers carrying only {@code Hash=}/
@@ -93,8 +116,8 @@ public final class XfccResolver {
      *  parse to amortise, but since the digest is computed for them anyway (whether an entry carries a
      *  certificate can only be known after parsing it), storing the result too means a repeat of the
      *  same identity-only header also skips the field-map parse, at negligible extra memory cost. When
-     *  the SHA-256 algorithm is unavailable (extremely unusual — checked and logged once at
-     *  construction, see {@link #sha256Unavailable}) every request falls back to inline parsing rather
+     *  the SHA-256 algorithm is unavailable (extremely unusual -- checked and logged once at
+     *  construction, see {@link #digestPrototype}) every request falls back to inline parsing rather
      *  than caching under an unsafe long key. */
     public ParsedXfcc resolve(String rawValue) throws CertificateException, IOException {
         if (this.certificateCache != null) {
@@ -147,9 +170,9 @@ public final class XfccResolver {
     /**
      * Decodes a header value in either of the two supported raw-certificate formats:
      * <ol>
-     *   <li>Plain base64-encoded DER (e.g. CF Gorouter {@code xfcc_format: raw}) — tried first.</li>
+     *   <li>Plain base64-encoded DER (e.g. CF Gorouter {@code xfcc_format: raw}) -- tried first.</li>
      *   <li>URL-encoded PEM (e.g. nginx {@code $ssl_client_escaped_cert}, Envoy XFCC {@code Cert=}/
-     *       {@code Chain=}, both documented as "URL encoded PEM format") — the fallback below.</li>
+     *       {@code Chain=}, both documented as "URL encoded PEM format") -- the fallback below.</li>
      * </ol>
      * The fallback is safe to round-trip through a {@code String} as UTF-8: PEM is armored ASCII
      * text (base64 body plus {@code -----BEGIN/END-----} lines), never raw binary DER, so
@@ -171,25 +194,44 @@ public final class XfccResolver {
     }
 
     /** Returns the SHA-256 digest of {@code input} as 64 lowercase hex characters, or {@code null} if
-     *  {@link #sha256Unavailable} was set at construction (in which case the caller falls back to no
-     *  caching for that request rather than using an unsafe long key). {@code MessageDigest} instances
-     *  are not thread-safe, so a fresh one is obtained per call; the cost is dominated by the digest
-     *  computation itself. Note: {@code input} is the header value exactly as received — either
-     *  URL-encoded PEM text or base64-encoded DER (see {@link #decodeHeader}) — never the decoded DER
-     *  bytes, so this digest intentionally differs from the Envoy XFCC {@code Hash=} field (which is
-     *  SHA-256 of the decoded DER). This is fine for cache identity but the two values must not be
-     *  compared. */
+     *  {@link #digestPrototype} is {@code null} (in which case the caller falls back to no caching
+     *  for that request rather than using an unsafe long key). {@code MessageDigest} instances are not
+     *  thread-safe, so each call clones a fresh instance off {@link #digestPrototype} rather than
+     *  calling {@link MessageDigest#getInstance} again -- cloning duplicates internal digest state
+     *  directly and skips the provider-lookup machinery {@code getInstance} performs on every call.
+     *  Falls back to {@code getInstance} for every call if the provider's implementation is not
+     *  {@link Cloneable} (uncommon; the JDK's built-in SHA-256 implementation is) -- that check is
+     *  done once at construction (see {@link #cloneSupported}), not retried per request. Note:
+     *  {@code input} is the header
+     *  value exactly as received -- either URL-encoded PEM text or base64-encoded DER (see
+     *  {@link #decodeHeader}) -- never the decoded DER bytes, so this digest intentionally differs
+     *  from the Envoy XFCC {@code Hash=} field (which is SHA-256 of the decoded DER). This is fine
+     *  for cache identity but the two values must not be compared. Cloning is preferred over
+     *  {@code getInstance} here because it avoids the provider registry's shared lookup path
+     *  entirely, rather than merely being faster on average; benchmark numbers for this are
+     *  JVM- and provider-specific and are kept out of this Javadoc for that reason (see the pull
+     *  request discussion for measurements). */
     private String sha256Hex(String input) {
-        if (this.sha256Unavailable) {
+        if (this.digestPrototype == null) {
             return null;
         }
         MessageDigest md;
-        try {
-            md = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            // Unreachable in practice: availability was already confirmed at construction and cannot
-            // change at runtime. Fall back safely rather than throwing if it somehow does.
-            return null;
+        if (this.cloneSupported) {
+            try {
+                md = (MessageDigest) this.digestPrototype.clone();
+            } catch (CloneNotSupportedException e) {
+                // Unreachable in practice: probed once at construction (see #cloneSupported) and
+                // cannot change at runtime. Fall back safely rather than throwing if it somehow does.
+                return null;
+            }
+        } else {
+            try {
+                md = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                // Unreachable in practice: availability was already confirmed at construction and
+                // cannot change at runtime. Fall back safely rather than throwing if it somehow does.
+                return null;
+            }
         }
         byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
         char[] out = new char[digest.length * 2];
