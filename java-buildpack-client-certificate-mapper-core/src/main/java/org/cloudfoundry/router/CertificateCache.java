@@ -43,8 +43,8 @@ import java.util.logging.Logger;
  * <p><b>Concurrent parse deduplication.</b> {@link #getOrCompute(String, ParsedXfccSupplier)} uses
  * {@link ConcurrentHashMap#computeIfAbsent(Object, java.util.function.Function)} to serialize the
  * miss path per key. When many threads race with the same cache-cold key (e.g. a burst of requests
- * carrying the same XFCC header), only one thread invokes the supplier — the others wait briefly on
- * the bucket lock and receive the computed result — avoiding a thundering-herd parse spike.
+ * carrying the same XFCC header), only one thread invokes the supplier -- the others wait briefly on
+ * the bucket lock and receive the computed result -- avoiding a thundering-herd parse spike.
  * Different keys never block each other. Prefer {@code getOrCompute} over the raw {@link #get} /
  * {@link #put} pair on hot paths.
  *
@@ -53,13 +53,13 @@ import java.util.logging.Logger;
  * each request produces a fresh {@code String} instance from XFCC substring parsing,
  * {@link String#hashCode()} cannot be reused across requests and traverses the whole key on every
  * lookup, and a hit also requires a full-length {@link String#equals(Object)}. JMH measurement on
- * JDK 25 (single-threaded, {@code AverageTime}, 5+5 iterations × 2 forks):
+ * JDK 25 (single-threaded, {@code AverageTime}, 5+5 iterations x 2 forks):
  * <pre>
  *   parse the cert every call (no cache):            ~3620 ns/op
  *   cache hit keyed by the raw ~1.3 KB cert string:  ~1890 ns/op  (only 1.9x vs no cache)
  *   cache hit keyed by 64-char SHA-256 hex digest:    ~130 ns/op  (28x vs no cache)
  * </pre>
- * Deriving a short digest recovers ~14.6x of the per-hit cost and — under real concurrent load —
+ * Deriving a short digest recovers ~14.6x of the per-hit cost and -- under real concurrent load --
  * removes the compounded per-request CPU that made a raw-key cache measurably worse than no cache
  * at all in field measurements.
  *
@@ -67,7 +67,7 @@ import java.util.logging.Logger;
  * value the entry was parsed from. Deriving the key ensures only a request carrying the actual
  * header can produce a hit, and keeps {@link String#hashCode()} and {@link String#equals(Object)}
  * on the cache key cheap on every lookup. Note that the digest is taken over the header string as
- * received — the URL-encoded PEM or base64 DER — not over the decoded DER bytes, so the key
+ * received -- the URL-encoded PEM or base64 DER -- not over the decoded DER bytes, so the key
  * intentionally differs from the Envoy XFCC {@code Hash=} field (which is defined as SHA-256 of the
  * DER). This is fine for cache identity (same header value produces the same key) but means the two
  * hashes are not cross-comparable. With the default generation size of 128, the cache holds at most
@@ -111,7 +111,7 @@ public final class CertificateCache {
 
     /**
      * Guards only the generation swap in {@link #rotateIfFull()}. Reads ({@link #get},
-     * {@link #peek}) and cache hits never take this lock — it is entered only on a miss that
+     * {@link #peek}) and cache hits never take this lock -- it is entered only on a miss that
      * finds the current generation already full, which is rare relative to overall traffic.
      * Without this guard, multiple threads can observe the same full generation concurrently and
      * each perform a swap, cascading through several generations in quick succession: this
@@ -199,7 +199,7 @@ public final class CertificateCache {
             recordHit();
             return value;
         }
-        // Rotate before entering computeIfAbsent — the mapping function must not mutate currentGen.
+        // Rotate before entering computeIfAbsent -- the mapping function must not mutate currentGen.
         rotateIfFull();
         // computeIfAbsent guarantees the mapping function runs at most once per key, but callers
         // that lose the race still return through this same call without ever invoking it. Track

@@ -124,7 +124,7 @@ public final class XfccEntryTest {
 
     @Test
     public void malformedTrailingBackslashInQuotedValueDoesNotThrow() {
-        // Subject="abc\ — trailing backslash, no closing quote
+        // Subject="abc\ -- trailing backslash, no closing quote
         XfccEntry entry = new XfccEntry("Hash=abc;Subject=\"abc\\");
         assertThat(entry.resemblesXfcc()).isTrue();
         assertThat(entry.get(XfccField.HASH)).isEqualTo("abc");
@@ -134,7 +134,7 @@ public final class XfccEntryTest {
 
     @Test
     public void malformedUnclosedQuoteDoesNotThrow() {
-        // Subject=" — quote opened but never closed
+        // Subject=" -- quote opened but never closed
         XfccEntry entry = new XfccEntry("Hash=abc;Subject=\"unclosed");
         assertThat(entry.resemblesXfcc()).isTrue();
         assertThat(entry.get(XfccField.HASH)).isEqualTo("abc");
@@ -156,7 +156,7 @@ public final class XfccEntryTest {
 
     @Test
     public void getEscapedBackslashInsideQuotedValueIsUnescaped() {
-        // Raw header bytes: Subject="CN=C:\\Path" — RFC 9110 quoted-pair \\ means a literal \
+        // Raw header bytes: Subject="CN=C:\\Path" -- RFC 9110 quoted-pair \\ means a literal \
         XfccEntry entry = new XfccEntry("Hash=abc;Subject=\"CN=C:\\\\Path\"");
         assertThat(entry.get(XfccField.SUBJECT)).isEqualTo("CN=C:\\Path");
     }

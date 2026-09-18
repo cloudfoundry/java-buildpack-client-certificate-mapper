@@ -53,7 +53,7 @@ public final class XfccResolver {
     /** Determined once at construction: {@code true} if {@code SHA-256} is unavailable, so caching
      *  cannot use a digest-based key. The JVM's set of security providers does not change at runtime,
      *  and {@code SHA-256} is a standard algorithm every conformant JVM must support, so checking once
-     *  up front — logging a single warning here rather than discovering it only under request load —
+     *  up front -- logging a single warning here rather than discovering it only under request load --
      *  is strictly better than probing {@link MessageDigest#getInstance} again on every request. */
     private final boolean sha256Unavailable;
 
@@ -85,7 +85,7 @@ public final class XfccResolver {
 
     /** Returns the parsed bundle for {@code rawValue}, using the cache when enabled. The cache is
      *  keyed by a SHA-256 digest of the raw header value and consulted, via {@link CertificateCache#peek}
-     *  <em>before</em> {@code rawValue} is parsed into an {@link XfccEntry} — a hit returns the
+     *  <em>before</em> {@code rawValue} is parsed into an {@link XfccEntry} -- a hit returns the
      *  previously cached bundle directly, so a repeat of the same header does not re-run the one-pass
      *  field scan just to discard it. Every entry that produces a digest is cached on a miss, including
      *  identity-only XFCC headers (e.g. CF app-identity headers carrying only {@code Hash=}/
@@ -93,7 +93,7 @@ public final class XfccResolver {
      *  parse to amortise, but since the digest is computed for them anyway (whether an entry carries a
      *  certificate can only be known after parsing it), storing the result too means a repeat of the
      *  same identity-only header also skips the field-map parse, at negligible extra memory cost. When
-     *  the SHA-256 algorithm is unavailable (extremely unusual — checked and logged once at
+     *  the SHA-256 algorithm is unavailable (extremely unusual -- checked and logged once at
      *  construction, see {@link #sha256Unavailable}) every request falls back to inline parsing rather
      *  than caching under an unsafe long key. */
     public ParsedXfcc resolve(String rawValue) throws CertificateException, IOException {
@@ -147,9 +147,9 @@ public final class XfccResolver {
     /**
      * Decodes a header value in either of the two supported raw-certificate formats:
      * <ol>
-     *   <li>Plain base64-encoded DER (e.g. CF Gorouter {@code xfcc_format: raw}) — tried first.</li>
+     *   <li>Plain base64-encoded DER (e.g. CF Gorouter {@code xfcc_format: raw}) -- tried first.</li>
      *   <li>URL-encoded PEM (e.g. nginx {@code $ssl_client_escaped_cert}, Envoy XFCC {@code Cert=}/
-     *       {@code Chain=}, both documented as "URL encoded PEM format") — the fallback below.</li>
+     *       {@code Chain=}, both documented as "URL encoded PEM format") -- the fallback below.</li>
      * </ol>
      * The fallback is safe to round-trip through a {@code String} as UTF-8: PEM is armored ASCII
      * text (base64 body plus {@code -----BEGIN/END-----} lines), never raw binary DER, so
@@ -174,8 +174,8 @@ public final class XfccResolver {
      *  {@link #sha256Unavailable} was set at construction (in which case the caller falls back to no
      *  caching for that request rather than using an unsafe long key). {@code MessageDigest} instances
      *  are not thread-safe, so a fresh one is obtained per call; the cost is dominated by the digest
-     *  computation itself. Note: {@code input} is the header value exactly as received — either
-     *  URL-encoded PEM text or base64-encoded DER (see {@link #decodeHeader}) — never the decoded DER
+     *  computation itself. Note: {@code input} is the header value exactly as received -- either
+     *  URL-encoded PEM text or base64-encoded DER (see {@link #decodeHeader}) -- never the decoded DER
      *  bytes, so this digest intentionally differs from the Envoy XFCC {@code Hash=} field (which is
      *  SHA-256 of the decoded DER). This is fine for cache identity but the two values must not be
      *  compared. */

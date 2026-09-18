@@ -136,7 +136,7 @@ final class ClientCertificateMapper implements Filter {
             } catch (CertificateException | IllegalArgumentException e) {
                 this.logger.warning("Unable to parse certificates in X-Forwarded-Client-Cert");
             }
-            // Only wrap when the header is actually present — avoids allocation on requests without a cert.
+            // Only wrap when the header is actually present -- avoids allocation on requests without a cert.
             if (this.stripXfccHeader && ((HttpServletRequest) request).getHeader(HEADER) != null) {
                 request = new XfccStrippingRequestWrapper((HttpServletRequest) request, response);
             }
