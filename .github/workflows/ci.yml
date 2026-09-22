@@ -22,7 +22,8 @@ on:
 # either cancel the other could leave the merge untested.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel on main: a cancelled snapshot job could leave the rolling release deleted.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:
@@ -67,10 +68,27 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build
-        run: ./mvnw -q package -DskipTests
+      # Only a -SNAPSHOT revision belongs in the rolling snapshot release; releases come from tags.
+      - name: Check snapshot version
+        id: version
+        run: |
+          VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Project version: ${VERSION}"
+          if [[ "${VERSION}" == *-SNAPSHOT ]]; then
+            echo "snapshot=true" >> "$GITHUB_OUTPUT"
+            # e.g. 2.1.0-SNAPSHOT built from a1b2c3d becomes 2.1.0-a1b2c3d-SNAPSHOT
+            echo "revision=${VERSION%-SNAPSHOT}-$(git rev-parse --short HEAD)-SNAPSHOT" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::main is at ${VERSION}, not a -SNAPSHOT: skipping the rolling snapshot release."
+          fi
+
+      # Test and build in one invocation, so the published jar is the binary that passed the tests.
+      - name: Build and test
+        if: steps.version.outputs.snapshot == 'true'
+        run: ./mvnw -B -Drevision="${{ steps.version.outputs.revision }}" verify
 
       - name: Collect artifacts
+        if: steps.version.outputs.snapshot == 'true'
         id: artifacts
         run: |
           JAR=$(ls java-buildpack-client-certificate-mapper/target/java-buildpack-client-certificate-mapper-*SNAPSHOT.jar \
@@ -81,15 +99,17 @@ jobs:
           echo "sources=$SOURCES" >> $GITHUB_OUTPUT
 
       - name: Recreate rolling snapshot release
+        if: steps.version.outputs.snapshot == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          REVISION="${{ steps.version.outputs.revision }}"
           gh release delete snapshot --yes 2>/dev/null || true
           git push origin :refs/tags/snapshot 2>/dev/null || true
           gh release create snapshot \
             --prerelease \
-            --title "Latest SNAPSHOT ($VERSION)" \
-            --notes "Automatically published on every push to \`main\`. Always reflects the latest snapshot build." \
+            --target "${{ github.sha }}" \
+            --title "Latest SNAPSHOT ($REVISION)" \
+            --notes "Automatically published on every push to \`main\`. Always reflects the latest snapshot build, from commit ${{ github.sha }}." \
             "${{ steps.artifacts.outputs.jar }}" \
             "${{ steps.artifacts.outputs.sources }}"

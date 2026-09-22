@@ -150,6 +150,7 @@ The filter uses Java Util Logging. Set the `org.cloudfoundry.router` logger to `
 - [docs/PROVIDERS.md](docs/PROVIDERS.md) -- choosing the JCA provider that parses certificates
 - [docs/PERFORMANCE.md](docs/PERFORMANCE.md) -- cache design, benchmarks, memory
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) -- building from source, CI workflows
+- [docs/RELEASE.md](docs/RELEASE.md) -- making a release, and how a release reaches the Java buildpack
 
 ## License
 

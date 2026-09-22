@@ -11,6 +11,8 @@ $ ./mvnw clean package
 | Workflow | Trigger | Description |
 | -------- | ------- | ----------- |
 | **CI** | push to `main`, pull requests, manual | Builds and runs all tests. On push to `main` (after tests pass) also publishes the jar to the rolling snapshot release. |
-| **Release** | manual (`workflow_dispatch`) | Bumps to release version, tags `vX.Y.Z`, creates a GitHub Release with the jar attached, then advances to the next SNAPSHOT version. |
+| **Release** | publishing a GitHub release with a `vX.Y.Z` tag; manual re-run with a tag | Builds and tests the tag as version `X.Y.Z`, checks every artifact carries that version, and attaches the jars to the release. See [RELEASE.md](RELEASE.md). |
 
 All workflows can be triggered from **Actions -> select workflow -> Run workflow**.
+
+The project version is `${revision}`, a property in the root `pom.xml`; see [RELEASE.md](RELEASE.md).

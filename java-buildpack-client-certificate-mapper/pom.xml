@@ -26,7 +26,7 @@
     <parent>
         <groupId>org.cloudfoundry</groupId>
         <artifactId>java-buildpack-client-certificate-mapper-parent</artifactId>
-        <version>2.1.0-SNAPSHOT</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>java-buildpack-client-certificate-mapper</artifactId>
@@ -73,7 +73,7 @@
                         <phase>package</phase>
                         <configuration>
                             <target>
-                                <zip destfile="target/${project.artifactId}-${version}-javadoc.jar">
+                                <zip destfile="target/${project.artifactId}-${project.version}-javadoc.jar">
                                     <zipgroupfileset dir="../${project.artifactId}-jakarta/target/" includes="*javadoc.jar"/>
                                     <zipgroupfileset dir="../${project.artifactId}-javax/target/" includes="*javadoc.jar"/>
                                 </zip>
@@ -104,7 +104,7 @@
                             <goal>deploy-file</goal>
                         </goals>
                         <configuration>
-                            <file>target/${project.artifactId}-${version}-javadoc.jar</file>
+                            <file>target/${project.artifactId}-${project.version}-javadoc.jar</file>
                             <url>file://${env.REPOSITORY}</url>
                             <groupId>${project.groupId}</groupId>
                             <artifactId>${project.artifactId}</artifactId>

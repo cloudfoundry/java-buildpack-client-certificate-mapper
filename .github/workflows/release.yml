@@ -1,25 +1,47 @@
 name: Release
 
+# Publishing a GitHub release with a new tag vX.Y.Z builds that tag as version X.Y.Z and attaches the
+# jars. The version comes from the tag (-Drevision), so no version-bump commit is needed beforehand.
+# See docs/RELEASE.md.
+
 on:
+  release:
+    types: [ published ]
   workflow_dispatch:
     inputs:
-      release_version:
-        description: 'Release version (e.g. 2.0.2)'
-        required: true
-      next_snapshot_version:
-        description: 'Next development version (e.g. 2.0.3-SNAPSHOT)'
+      tag:
+        description: 'Existing release tag to rebuild and re-attach artifacts for (e.g. v2.1.0)'
         required: true
 
 permissions:
   contents: write
 
+# A second run for the same tag (publish plus a manual re-run) waits instead of racing the upload.
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
   release:
+    # Pre-releases, such as the rolling snapshot, are not versioned releases.
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
+      - name: Validate tag
+        run: |
+          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: release tag '${TAG}' must look like vX.Y.Z (e.g. v2.1.0)." >&2
+            echo "Delete this release and its tag, then publish a new release with a vX.Y.Z tag." >&2
+            exit 1
+          fi
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          ref: refs/tags/${{ env.TAG }}
 
       - name: Set up Java 21
         uses: actions/setup-java@v6.0.0
@@ -28,52 +50,20 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      # The release profile fails the build if any module or dependency is still a -SNAPSHOT.
+      - name: Build and test
+        run: ./mvnw -B -Prelease -Drevision="${VERSION}" verify
 
-      - name: Set release version
-        run: ./mvnw versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
+      # Publishing to Maven Central -- which the java-buildpack dependency pipeline watches -- goes
+      # here once the org.cloudfoundry signing key and Central credentials are available as secrets.
 
-      - name: Commit and tag release
-        run: |
-          git add .
-          git commit --message "v${{ inputs.release_version }} Release"
-          git tag v${{ inputs.release_version }}
-
-      - name: Build release
-        run: ./mvnw -q package -DskipTests
-
-      - name: Collect artifacts
-        id: artifacts
-        run: |
-          JAR=$(ls java-buildpack-client-certificate-mapper/target/java-buildpack-client-certificate-mapper-${{ inputs.release_version }}.jar \
-                | grep -v 'sources\|javadoc\|original' | head -1)
-          SOURCES=$(ls java-buildpack-client-certificate-mapper/target/java-buildpack-client-certificate-mapper-${{ inputs.release_version }}-sources.jar \
-                    | head -1)
-          echo "jar=$JAR" >> $GITHUB_OUTPUT
-          echo "sources=$SOURCES" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
+      # Naming each jar by version also fails the upload if the build produced a different version.
+      - name: Attach artifacts to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v${{ inputs.release_version }} \
-            --title "v${{ inputs.release_version }}" \
-            --generate-notes \
-            "${{ steps.artifacts.outputs.jar }}" \
-            "${{ steps.artifacts.outputs.sources }}"
-
-      - name: Set next snapshot version
-        run: ./mvnw versions:set -DnewVersion=${{ inputs.next_snapshot_version }} -DgenerateBackupPoms=false
-
-      - name: Commit next snapshot version
-        run: |
-          git add .
-          git commit --message "v${{ inputs.next_snapshot_version }} Development"
-
-      - name: Push commits and tag
-        run: |
-          git push origin main
-          git push origin v${{ inputs.release_version }}
+          DIR=java-buildpack-client-certificate-mapper/target
+          gh release upload "${TAG}" --clobber \
+            "${DIR}/java-buildpack-client-certificate-mapper-${VERSION}.jar" \
+            "${DIR}/java-buildpack-client-certificate-mapper-${VERSION}-sources.jar" \
+            "${DIR}/java-buildpack-client-certificate-mapper-${VERSION}-javadoc.jar"

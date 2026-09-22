@@ -25,12 +25,14 @@
 
     <groupId>org.cloudfoundry</groupId>
     <artifactId>java-buildpack-client-certificate-mapper-parent</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>${revision}</version>
     <packaging>pom</packaging>
     <name>Cloud Foundry Client Certificate Mapper</name>
     <description>Cloud Foundry Client Certificate Mapper</description>
 
     <properties>
+        <!-- The development version, the only place it is set. Release and snapshot builds override it with -Drevision. See docs/RELEASE.md. -->
+        <revision>2.1.0-SNAPSHOT</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -125,6 +127,28 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <!-- Resolves ${revision} in the installed and deployed POMs, so they carry the real version. -->
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.8.0</version>
+                <configuration>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                    <updatePomFile>true</updatePomFile>
+                    <outputDirectory>${project.build.directory}</outputDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>
@@ -134,6 +158,37 @@
             <modules>
                 <module>java-buildpack-client-certificate-mapper-benchmark</module>
             </modules>
+        </profile>
+        <profile>
+            <!-- Active in the Release workflow: ./mvnw -Prelease -Drevision=X.Y.Z verify. See docs/RELEASE.md. -->
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>3.6.3</version>
+                        <executions>
+                            <execution>
+                                <id>enforce-release</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireReleaseVersion>
+                                            <message>A release must not be a -SNAPSHOT: build with -Drevision=X.Y.Z.</message>
+                                        </requireReleaseVersion>
+                                        <requireReleaseDeps>
+                                            <message>A release must not depend on -SNAPSHOT versions.</message>
+                                        </requireReleaseDeps>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 
